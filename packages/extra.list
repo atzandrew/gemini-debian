@@ -40,3 +40,8 @@ upower
 lxqt-powermanagement
 # compressed swap in RAM (needs CONFIG_ZRAM, boot image from 2026-10-03)
 zram-tools
+# ---- sound (2026-10-03): amixer/speaker-test, gpioset (speaker amps), PipeWire
+alsa-utils
+gpiod
+pipewire-audio
+rtkit
