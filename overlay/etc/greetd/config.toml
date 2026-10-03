@@ -1,0 +1,10 @@
+# Gemini PDA: greetd + tuigreet text greeter on tty1 (from gemini-nixos
+# services/greeter.nix). F3 in tuigreet picks the session; the last user and
+# their last session are remembered. X sessions go through gemini-xsession
+# (rotation, scaling, touch mapping — see /etc/default/gemini-desktop).
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --asterisks --remember --remember-user-session --xsessions /usr/share/xsessions --sessions /usr/share/wayland-sessions --xsession-wrapper /usr/local/sbin/gemini-xsession"
+user = "_greetd"

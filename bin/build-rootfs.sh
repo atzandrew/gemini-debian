@@ -92,6 +92,8 @@ for s in $SCRIPTS; do
     cp "$NIXOS/services/scripts/$s" "$F/usr/local/sbin/$s"
 done
 install -D -m 644 "$NIXOS/config/keymaps/gemini-uk.map" "$F/usr/share/gemini/keymaps/gemini-uk.map"
+# The "gemini" xkb layout for X (part 6), verbatim from gemini-nixos.
+install -D -m 644 "$NIXOS/config/xkb/symbols/gemini" "$F/usr/share/X11/xkb/symbols/gemini"
 install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
 # Factory Wi-Fi NVRAM record (MAC + TX calibration) where wlan_gen3 reads it.
 # NOTE: this is the record gemini-nixos ships (from the original author's

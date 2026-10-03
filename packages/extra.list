@@ -9,3 +9,26 @@ bluez
 # polkit: lets non-root users manage NetworkManager (nmtui/nmcli) and,
 # later, the desktop's power/network controls
 polkitd
+
+# ---- part 6: desktop (X11 + LXQt) behind greetd/tuigreet ----
+greetd
+tuigreet
+xserver-xorg-core
+xserver-xorg-legacy
+xserver-xorg-input-libinput
+xinit
+xauth
+x11-xserver-utils
+xinput
+libgl1-mesa-dri
+libegl-mesa0
+libglx-mesa0
+dbus-user-session
+lxqt-core
+lxqt-themes
+openbox
+breeze-icon-theme
+qterminal
+nm-tray
+fonts-dejavu-core
+firefox-esr

@@ -42,6 +42,15 @@ if [ -n "$EXTRA" ]; then
     [ -z "$rcbak" ] || mv "$R/etc/resolv.conf.gemini-bak" "$R/etc/resolv.conf"
 fi
 
+# ---- Gemini Mesa (optional: present after bin/build-mesa.sh) -------------
+if compgen -G "/work/out/mesa/*.deb" >/dev/null; then
+    echo "    customize: Gemini Mesa ($(ls /work/out/mesa/*.deb | wc -l) debs built)"
+    mkdir -p "$R/tmp/gemini-mesa"
+    cp /work/out/mesa/*.deb /work/bin/mesa-upgrade.sh "$R/tmp/gemini-mesa/"
+    in_chroot bash /tmp/gemini-mesa/mesa-upgrade.sh /tmp/gemini-mesa
+    rm -rf "$R/tmp/gemini-mesa"
+fi
+
 echo "    customize: gemini files + services"
 bash /work/bin/apply-files.sh "$R" "$S/files"
 
@@ -104,9 +113,10 @@ for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr
     [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
 done
 m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
-for t in busybox i2cset iw; do
+for t in busybox i2cset iw tuigreet startx Xorg xrandr xinput xrdb startlxqt openbox firefox-esr; do
     in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (needed by device scripts)"; exit 1; }
 done
+[ -f "$R/usr/share/X11/xkb/symbols/gemini" ] || { echo "!! gemini xkb symbols missing"; exit 1; }
 [ -f "$R/data/nvram/APCFG/APRDEB/WIFI" ] || { echo "!! Wi-Fi NVRAM missing"; exit 1; }
 [ -f "$R/usr/lib/firmware/WIFI_RAM_CODE_6797" ] || { echo "!! WIFI_RAM_CODE_6797 missing"; exit 1; }
 echo "    customize: ok"

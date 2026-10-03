@@ -1,0 +1,28 @@
+#!/bin/sh
+# X client started by gemini-xsession: set up the Gemini panel (rotation,
+# scaling, touch), then exec the session. Settings: /etc/default/gemini-desktop
+[ -r /etc/default/gemini-desktop ] && . /etc/default/gemini-desktop
+ROT=${GEMINI_ROTATE:-left}
+DPI=${GEMINI_DPI:-144}
+
+out=$(xrandr --query | awk '/ connected/ {print $1; exit}')
+if [ -n "$out" ]; then
+    xrandr --output "$out" --rotate "$ROT" || echo "gemini-xinit: xrandr rotate failed" >&2
+else
+    echo "gemini-xinit: no connected output found" >&2
+fi
+
+echo "Xft.dpi: $DPI" | xrdb -merge
+
+# Touchscreen follows the rotation (or an explicit matrix).
+xinput list --name-only 2>/dev/null | grep -iE 'touch|ssd2092|nt36' | while IFS= read -r dev; do
+    if [ -n "${GEMINI_TOUCH_MATRIX:-}" ]; then
+        # shellcheck disable=SC2086
+        xinput set-prop "$dev" "Coordinate Transformation Matrix" $GEMINI_TOUCH_MATRIX
+    elif [ -n "$out" ]; then
+        xinput map-to-output "$dev" "$out"
+    fi
+    echo "gemini-xinit: touch '$dev' mapped" >&2
+done
+
+exec "$@"

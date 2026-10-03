@@ -1,0 +1,17 @@
+# Gemini desktop settings, read by /usr/local/sbin/gemini-xinit at each
+# graphical login. Edit, then log out and back in.
+
+# Screen rotation for xrandr: left | right | normal | inverted.
+# The panel is portrait natively; "left" matches the console (fbcon=rotate:3).
+GEMINI_ROTATE=left
+
+# UI scale via Xft.dpi (96 = 1x, 144 = 1.5x, 192 = 2x). Qt6 (LXQt) and
+# GTK (Firefox) both follow it.
+GEMINI_DPI=144
+
+# Touchscreen: by default it is mapped to the rotated screen with
+# `xinput map-to-output`. If touches land in the wrong place, set an explicit
+# 3x3 Coordinate Transformation Matrix instead, e.g. one of:
+#   "0 -1 1 1 0 0 0 0 1"    "0 1 0 -1 0 1 0 0 1"
+#   "-1 0 1 0 -1 1 0 0 1"   "1 0 0 0 1 0 0 0 1"
+GEMINI_TOUCH_MATRIX=""

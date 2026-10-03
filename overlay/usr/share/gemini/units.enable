@@ -7,3 +7,4 @@ gemini-wifi-internal.service
 gemini-bt-hci.service
 gemini-battery-guard.service
 gemini-backlight-default.service
+greetd.service
