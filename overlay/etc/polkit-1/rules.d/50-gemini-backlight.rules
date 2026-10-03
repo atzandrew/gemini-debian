@@ -1,0 +1,12 @@
+// Gemini PDA: members of "sudo" may set the backlight through LXQt's
+// brightness helper (Configuration Center -> Brightness). X has no backlight
+// property on the geminipda-drm display, so LXQt falls back to its sysfs
+// helper, run via pkexec.
+polkit.addRule(function(action, subject) {
+    var prog = action.lookup("program") || "";
+    if (subject.isInGroup("sudo") &&
+        (/lxqt-backlight_backend$/.test(prog) ||
+         (action.id.indexOf("org.lxqt.") == 0 && action.id.indexOf("backlight") >= 0))) {
+        return polkit.Result.YES;
+    }
+});
