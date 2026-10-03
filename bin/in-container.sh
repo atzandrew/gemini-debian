@@ -10,7 +10,7 @@ IMG=/work/out/gemini-debian-rootfs.img
 echo "    installing build tools"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    mmdebstrap e2fsprogs ca-certificates >/dev/null
+    mmdebstrap e2fsprogs ca-certificates libcap2-bin attr >/dev/null
 
 INCLUDE=$(sed -e 's/#.*//' /work/packages/base.list | xargs | tr ' ' ',')
 COMP="main contrib non-free non-free-firmware"
@@ -29,6 +29,15 @@ rm -f "$IMG"
 # no_copy_xattrs: don't carry host SELinux labels into the image (the same
 # Asahi problem gemini-nixos fixed in pkgs/make-ext4fs-shim.nix).
 mke2fs -q -t ext4 -L gemini-debian -E no_copy_xattrs -d "$ROOTFS" "$IMG" "$IMAGE_SIZE"
+# no_copy_xattrs also drops security.capability (ping lost cap_net_raw,
+# 2026-10-03). Put the file capabilities back one by one with debugfs.
+CAPTMP=$(mktemp)
+getcap -r "$ROOTFS" 2>/dev/null | while read -r f _; do
+    getfattr --absolute-names --only-values -n security.capability "$f" > "$CAPTMP"
+    debugfs -w -R "ea_set -f $CAPTMP /${f#"$ROOTFS"/} security.capability" "$IMG" 2>/dev/null
+    echo "    capability restored: /${f#"$ROOTFS"/}"
+done
+rm -f "$CAPTMP"
 e2fsck -fn "$IMG" >/dev/null
 echo "    used: $(du -sh --apparent-size "$ROOTFS" | cut -f1) of $IMAGE_SIZE"
 
