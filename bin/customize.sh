@@ -5,14 +5,9 @@ set -euo pipefail
 R=$1
 source /work/config.env
 S=/work/build/stage
+B=/work/build/bundle
 KVER=$(cat "$S/kver")
 in_chroot() { chroot "$R" "$@"; }
-
-echo "    customize: overlay"
-# Copy overlay/ owned by root (the repo files are owned by the host user).
-tar -C /work/overlay --owner=0 --group=0 -cf - . | tar -C "$R" -xf -
-chmod 755 "$R"/usr/local/sbin/*
-chmod 600 "$R"/etc/NetworkManager/system-connections/*.nmconnection
 
 echo "    customize: kernel $KVER modules + firmware"
 mkdir -p "$R/usr/lib/modules" "$R/usr/lib/firmware"
@@ -20,13 +15,35 @@ cp -r --no-preserve=ownership "$S/modules/$KVER" "$R/usr/lib/modules/"
 cp -r --no-preserve=ownership "$S/firmware/." "$R/usr/lib/firmware/"
 in_chroot depmod -a "$KVER"
 
-echo "    customize: console keymap + build info"
-install -D -m 644 "$S/gemini-uk.map" "$R/usr/share/gemini/keymaps/gemini-uk.map"
-install -D -m 644 "$S/build-info" "$R/etc/gemini/build-info"
+# ---- packages added after part 2 (packages/extra.list) --------------------
+# Installed here from the part-2 baseline so the exact .debs it needed
+# (packages + any missing dependencies) can also go into the update bundle
+# for a running Gemini with no network.
+EXTRA=$(sed -e 's/#.*//' /work/packages/extra.list | xargs)
+mkdir -p "$B/debs"
+if [ -n "$EXTRA" ]; then
+    echo "    customize: extra packages: $EXTRA"
+    rcbak=""
+    if [ -e "$R/etc/resolv.conf" ] || [ -L "$R/etc/resolv.conf" ]; then
+        mv "$R/etc/resolv.conf" "$R/etc/resolv.conf.gemini-bak"; rcbak=1
+    fi
+    cp /etc/resolv.conf "$R/etc/resolv.conf"
+    printf '#!/bin/sh\nexit 101\n' > "$R/usr/sbin/policy-rc.d"; chmod 755 "$R/usr/sbin/policy-rc.d"
+    export DEBIAN_FRONTEND=noninteractive
+    in_chroot apt-get clean
+    in_chroot apt-get update -qq
+    # shellcheck disable=SC2086
+    in_chroot apt-get install -y -q --no-install-recommends --download-only $EXTRA
+    cp "$R"/var/cache/apt/archives/*.deb "$B/debs/" 2>/dev/null || true
+    # shellcheck disable=SC2086
+    in_chroot apt-get install -y -q --no-install-recommends $EXTRA
+    echo "      bundle debs: $(ls "$B/debs" | wc -l)"
+    rm -f "$R/usr/sbin/policy-rc.d" "$R/etc/resolv.conf"
+    [ -z "$rcbak" ] || mv "$R/etc/resolv.conf.gemini-bak" "$R/etc/resolv.conf"
+fi
 
-echo "    customize: USB network ($USB_ADDR via $USB_GW)"
-sed -i -e "s|@USB_ADDR@|$USB_ADDR|" -e "s|@USB_GW@|$USB_GW|" \
-    "$R/etc/NetworkManager/system-connections/usb0.nmconnection"
+echo "    customize: gemini files + services"
+bash /work/bin/apply-files.sh "$R" "$S/files"
 
 echo "    customize: hostname, timezone, locale"
 echo "$GEMINI_HOSTNAME" > "$R/etc/hostname"
@@ -61,9 +78,8 @@ install -m 600 "$S/authorized_keys" "$H/.ssh/authorized_keys"
 in_chroot chown -R "$GEMINI_USER:$GEMINI_USER" "/home/$GEMINI_USER/.ssh"
 # root stays locked (no password); use sudo.
 
-echo "    customize: services"
-in_chroot systemctl enable gemini-keymap.service gemini-growfs.service \
-    ssh.service NetworkManager.service systemd-timesyncd.service
+echo "    customize: base services"
+in_chroot systemctl enable ssh.service NetworkManager.service systemd-timesyncd.service
 
 echo "    customize: boot-handoff checks"
 # The initrd tests [ -x /newroot/sbin/init ] and [ -f /newroot/etc/os-release ]
@@ -82,4 +98,15 @@ fix_rel /etc/os-release ../usr/lib/os-release
 [ -x "$R/usr/sbin/init" ] || { echo "!! /usr/sbin/init missing (systemd-sysv)"; exit 1; }
 [ -f "$R/etc/os-release" ] || { echo "!! /etc/os-release missing"; exit 1; }
 [ -d "$R/usr/lib/modules/$KVER/kernel" ] || { echo "!! modules not installed"; exit 1; }
+# Core directories must be world-readable/traversable or nothing but root works.
+for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr/share /var /home /data; do
+    m=$(stat -c %a "$R$d")
+    [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
+done
+m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
+for t in busybox i2cset iw; do
+    in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (needed by device scripts)"; exit 1; }
+done
+[ -f "$R/data/nvram/APCFG/APRDEB/WIFI" ] || { echo "!! Wi-Fi NVRAM missing"; exit 1; }
+[ -f "$R/usr/lib/firmware/WIFI_RAM_CODE_6797" ] || { echo "!! WIFI_RAM_CODE_6797 missing"; exit 1; }
 echo "    customize: ok"

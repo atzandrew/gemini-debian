@@ -1,0 +1,18 @@
+# From gemini-nixos services/gemini-pda.nix (gemini-battery-guard).
+# Orderly poweroff at 3.50 V on battery (two consecutive samples); warns at
+# 3.65 V and when USB is present but not charging. History in
+# /var/log/battery-history.csv, live state in /run/battery-guard/state.
+[Unit]
+Description=Gemini battery safety guard
+After=systemd-udevd.service
+
+[Service]
+ExecStart=/usr/local/sbin/battery-guard.sh
+Restart=always
+RestartSec=10
+Environment=BATTERY_GUARD_POLL_S=10
+Environment=BATTERY_GUARD_WARN_LOW_MV=3650
+Environment=BATTERY_GUARD_CRIT_MV=3500
+
+[Install]
+WantedBy=multi-user.target

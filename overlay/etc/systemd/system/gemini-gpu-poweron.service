@@ -1,0 +1,14 @@
+# From gemini-nixos services/gemini-pda.nix (gemini-gpu-poweron).
+[Unit]
+Description=Gemini GPU power-on (Mali-T880 MFG domains, VGPU rails)
+After=systemd-udevd.service systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=30
+ExecStart=/usr/local/sbin/gemini-gpu-poweron.sh
+
+[Install]
+WantedBy=multi-user.target

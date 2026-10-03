@@ -1,0 +1,11 @@
+# From gemini-nixos services/gemini-pda.nix. Hand-started only (never enable:
+# a boot-time watchdog arm would reboot-loop). Arms the SoC watchdog for a
+# self-boot in 20 s.
+[Unit]
+Description=Gemini watchdog self-reboot (20 s)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+TimeoutStartSec=35
+ExecStart=/usr/local/sbin/gemini-wdt-reboot 20

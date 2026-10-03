@@ -31,7 +31,11 @@ NIXOS=$(cd "$HERE" && cd "$GEMINI_NIXOS_DIR" && pwd) || die "gemini-nixos not fo
 STAGE=$HERE/build/stage
 
 # Previous runs leave read-only Nix copies behind; make them deletable.
-if [ -d build ]; then chmod -R u+w build 2>/dev/null || true; rm -rf build; fi
+# A failed container run can leave root-owned files in build/ (sudo fallback).
+if [ -d build ]; then
+    chmod -R u+w build 2>/dev/null || true
+    rm -rf build 2>/dev/null || sudo rm -rf build
+fi
 mkdir -p "$STAGE" out
 
 echo "==> 1/3 kernel modules + firmware from $NIXOS"
@@ -54,8 +58,11 @@ elif [ -d "$SYS/firmware" ]; then
 else
     die "$SYS has no firmware link"
 fi
+# Debian's wireless-regdb package owns regulatory.db{,.p7s} (via
+# alternatives symlinks); keep Debian's, drop the NixOS copies.
+chmod -R u+w "$STAGE/firmware"
+rm -f "$STAGE/firmware/regulatory.db" "$STAGE/firmware/regulatory.db.p7s"
 echo "    kernel build: $(readlink -f "$SYS/kernel")"
-cp "$NIXOS/config/keymaps/gemini-uk.map" "$STAGE/gemini-uk.map"
 chmod -R u+w "$STAGE"
 echo "$KVER" > "$STAGE/kver"
 {
@@ -67,6 +74,30 @@ echo "$KVER" > "$STAGE/kver"
     echo "suite: $DEBIAN_SUITE"
 } > "$STAGE/build-info"
 echo "    modules: $(du -sh "$STAGE/modules" | cut -f1), firmware: $(du -sh "$STAGE/firmware" | cut -f1)"
+
+# ---- the Gemini files tree (goes into the image AND the update bundle) ----
+# overlay/ + device scripts, keymap and Wi-Fi NVRAM copied from gemini-nixos.
+F=$STAGE/files
+mkdir -p "$F"
+cp -r overlay/. "$F/"
+sed -i -e "s|@USB_ADDR@|$USB_ADDR|" -e "s|@USB_GW@|$USB_GW|" \
+    "$F/etc/NetworkManager/system-connections/usb0.nmconnection"
+# Device scripts, verbatim (gemini-nixos services/scripts/). They call
+# busybox devmem, i2cset, iw, modprobe by name — all on Debian's PATH.
+SCRIPTS="gemini-gpu-poweron.sh panfrost-load.sh wifi-internal battery-guard.sh
+         backlight battstat bq25896-raw.sh cl2-up.sh cl2-down.sh gemini-wdt-reboot"
+mkdir -p "$F/usr/local/sbin"
+for s in $SCRIPTS; do
+    [ -f "$NIXOS/services/scripts/$s" ] || die "missing $NIXOS/services/scripts/$s"
+    cp "$NIXOS/services/scripts/$s" "$F/usr/local/sbin/$s"
+done
+install -D -m 644 "$NIXOS/config/keymaps/gemini-uk.map" "$F/usr/share/gemini/keymaps/gemini-uk.map"
+install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
+# Factory Wi-Fi NVRAM record (MAC + TX calibration) where wlan_gen3 reads it.
+# NOTE: this is the record gemini-nixos ships (from the original author's
+# unit); replace with this unit's own from the nvram backup (plan.md).
+install -D -m 644 "$NIXOS/pkgs/gemini-firmware/WIFI_factory.bin" "$F/data/nvram/APCFG/APRDEB/WIFI"
+echo "    files tree: $(find "$F" -type f | wc -l) files"
 
 echo "==> 2/3 login"
 : > "$STAGE/authorized_keys"
@@ -96,6 +127,6 @@ sudo podman run --rm --privileged --security-opt label=disable \
     bash /work/bin/in-container.sh
 
 echo
-echo "==> done: $HERE/out/gemini-debian-rootfs.img"
-ls -lh out/gemini-debian-rootfs.img
-echo "Next: docs/flashing.md"
+echo "==> done:"
+ls -lh out/gemini-debian-rootfs.img out/gemini-update.tar.gz
+echo "Full flash: docs/flashing.md    Update a running Gemini: docs/updating.md"

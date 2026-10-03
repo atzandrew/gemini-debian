@@ -1,0 +1,16 @@
+# From gemini-nixos services/gnome.nix (gemini-panfrost-load). panfrost is
+# blacklisted at boot; load it only once the GPU is powered, retrying until
+# /dev/dri/renderD128 appears (an early probe soft-reset times out).
+[Unit]
+Description=Gemini GPU driver load (panfrost, after GPU power-on)
+After=gemini-gpu-poweron.service
+Requires=gemini-gpu-poweron.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=90
+ExecStart=/usr/local/sbin/panfrost-load.sh
+
+[Install]
+WantedBy=multi-user.target

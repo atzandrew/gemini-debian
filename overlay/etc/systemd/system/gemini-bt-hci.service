@@ -1,0 +1,15 @@
+# From gemini-nixos services/bluetooth.nix (gemini-bt-hci). hci_stp registers
+# hci0; run after the CONSYS chip is powered by the Wi-Fi bring-up.
+[Unit]
+Description=Bluetooth HCI (MT6630 CONSYS hci_stp) bring-up
+After=gemini-wifi-internal.service systemd-modules-load.service
+Wants=gemini-wifi-internal.service
+Before=bluetooth.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/modprobe hci_stp
+
+[Install]
+WantedBy=multi-user.target

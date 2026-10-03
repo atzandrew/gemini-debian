@@ -1,0 +1,6 @@
+# Suspend/hibernate hang this device (no wake source) — keep them impossible.
+sleep.target
+suspend.target
+hibernate.target
+hybrid-sleep.target
+suspend-then-hibernate.target

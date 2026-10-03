@@ -1,0 +1,14 @@
+# From gemini-nixos services/gemini-pda.nix. The backlight is the biggest
+# load; at full brightness a 500 mA USB port cannot charge the battery.
+# Change the value and `systemctl restart gemini-backlight-default`.
+[Unit]
+Description=Gemini display backlight = power-saving default (10 %)
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/backlight set 10
+
+[Install]
+WantedBy=multi-user.target

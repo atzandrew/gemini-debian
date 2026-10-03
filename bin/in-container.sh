@@ -30,5 +30,22 @@ rm -f "$IMG"
 # Asahi problem gemini-nixos fixed in pkgs/make-ext4fs-shim.nix).
 mke2fs -q -t ext4 -L gemini-debian -E no_copy_xattrs -d "$ROOTFS" "$IMG" "$IMAGE_SIZE"
 e2fsck -fn "$IMG" >/dev/null
-chown "$HOST_UID:$HOST_GID" "$IMG"
 echo "    used: $(du -sh --apparent-size "$ROOTFS" | cut -f1) of $IMAGE_SIZE"
+
+echo "    packing update bundle"
+# Everything a running Gemini needs to catch up with this image, offline:
+# the files tree, the extra .debs (collected by customize.sh), the shared
+# installer, and build-info. Not included: kernel modules/firmware (they only
+# change with a new boot image -> full flash) or user/hostname/locale.
+B=/work/build/bundle
+BUNDLE=/work/out/gemini-update.tar.gz
+rm -rf "$B/files"
+cp -a /work/build/stage/files "$B/files"
+cp /work/bin/apply-files.sh "$B/apply-files.sh"
+cp /work/bin/bundle-install.sh "$B/install.sh"
+cp /work/build/stage/build-info "$B/build-info"
+tar -C "$B" --owner=0 --group=0 -czf "$BUNDLE" .
+echo "    bundle: $(du -h "$BUNDLE" | cut -f1) ($(ls "$B/debs" | wc -l) debs)"
+
+# Hand everything back to the host user (next run deletes build/).
+chown -R "$HOST_UID:$HOST_GID" "$IMG" "$BUNDLE" /work/build

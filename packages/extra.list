@@ -1,0 +1,8 @@
+# Packages added after part 2. Installed on top of base.list, AND shipped
+# (with any dependencies the part-2 baseline lacks) as .debs inside
+# out/gemini-update.tar.gz, so a running Gemini can take them offline.
+
+# part 4: devmem for the GPU/backlight/A72/WDT scripts
+busybox
+# part 4: Bluetooth (bluetoothd, bluetoothctl)
+bluez

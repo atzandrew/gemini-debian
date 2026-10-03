@@ -1,0 +1,9 @@
+# Units enabled by bin/apply-files.sh (image build and update bundle).
+gemini-keymap.service
+gemini-growfs.service
+gemini-gpu-poweron.service
+gemini-panfrost-load.service
+gemini-wifi-internal.service
+gemini-bt-hci.service
+gemini-battery-guard.service
+gemini-backlight-default.service

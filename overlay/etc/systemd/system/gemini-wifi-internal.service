@@ -1,0 +1,19 @@
+# From gemini-nixos services/wifi.nix (gemini-wifi-internal).
+# mtk_wcn + wlan_gen3 + WMT power-on -> wlan0. Must run after the GPU
+# power-on (the CONSYS chrdev collides with the GPU's, major 226, if the
+# wlan modules probe first). Reads /data/nvram/APCFG/APRDEB/WIFI (MAC + TX
+# calibration) and /lib/firmware/WIFI_RAM_CODE_6797.
+[Unit]
+Description=Internal Wi-Fi (MT6630 CONSYS) bring-up -> wlan0
+After=systemd-modules-load.service gemini-gpu-poweron.service
+Wants=gemini-gpu-poweron.service
+Before=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=90
+ExecStart=/usr/local/sbin/wifi-internal start
+
+[Install]
+WantedBy=multi-user.target

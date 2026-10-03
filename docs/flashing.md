@@ -64,8 +64,8 @@ both in one session, like the boot-image flash.)
   ssh atzero@10.15.19.82
   ```
 
-Wi-Fi is **not** up yet at this stage (the MT6630 bring-up is part 4), so
-USB or the console are the ways in.
+After the first flash, later changes don't need a reflash: see
+[updating.md](updating.md).
 
 ## Quick checks once logged in
 
