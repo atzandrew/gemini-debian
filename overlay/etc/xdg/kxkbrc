@@ -1,4 +1,5 @@
 [Layout]
 LayoutList=gemini
+VariantList=us
 Model=pc105
 Use=true
