@@ -32,3 +32,9 @@ qterminal
 nm-tray
 fonts-dejavu-core
 firefox-esr
+# brightness: Fn+B/N via xbindkeys -> brightnessctl
+brightnessctl
+xbindkeys
+# battery in the panel: UPower + LXQt's power manager tray icon
+upower
+lxqt-powermanagement

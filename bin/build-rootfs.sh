@@ -99,6 +99,18 @@ install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
 # NOTE: this is the record gemini-nixos ships (from the original author's
 # unit); replace with this unit's own from the nvram backup (plan.md).
 install -D -m 644 "$NIXOS/pkgs/gemini-firmware/WIFI_factory.bin" "$F/data/nvram/APCFG/APRDEB/WIFI"
+# Kernel modules changed WITHOUT a new kernel/boot image (CONFIG_MODVERSIONS
+# and module signing are off, so a rebuilt module loads into the flashed
+# kernel). Shipped in the files tree so the update bundle refreshes them on a
+# running Gemini; same path as in the module tree, so no depmod is needed.
+#   geminipda-drm.ko: CPU cache sync before the scanout blit (2026-10-02;
+#   fixes stale-pixel "residue" with GPU-accelerated X).
+MODULE_OVERRIDES="kernel/drivers/gpu/drm/tiny/geminipda-drm.ko"
+for m in $MODULE_OVERRIDES; do
+    src="$STAGE/modules/$KVER/$m"
+    [ -f "$src" ] || die "module override $m not in the module tree (find $STAGE/modules -name 'geminipda*')"
+    install -D -m 644 "$src" "$F/usr/lib/modules/$KVER/$m"
+done
 echo "    files tree: $(find "$F" -type f | wc -l) files"
 
 echo "==> 2/3 login"

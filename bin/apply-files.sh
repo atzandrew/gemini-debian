@@ -40,6 +40,21 @@ fi
 
 # Image build: use the target's own systemctl inside its chroot (the build
 # container has none). Live system: plain systemctl.
+# UPower (from gemini-nixos services/plumbing.nix): the % is a VOLTAGE-based
+# estimate (no fuel gauge), so never let UPower act on "critical" -- its
+# default (hibernate/suspend) hangs this device. gemini-battery-guard is the
+# only trusted poweroff (3.50 V). Thresholds match the NixOS tuning.
+UP="$R/etc/UPower/UPower.conf"
+if [ -f "$UP" ]; then
+    setkey() { if grep -qE "^#?$1=" "$UP"; then sed -i -E "s|^#?$1=.*|$1=$2|" "$UP"; else echo "$1=$2" >> "$UP"; fi; }
+    setkey UsePercentageForPolicy true
+    setkey PercentageLow 15
+    setkey PercentageCritical 5
+    setkey PercentageAction 2
+    setkey AllowRiskyCriticalPowerAction true
+    setkey CriticalPowerAction Ignore
+fi
+
 sc() { if [ -z "$R" ]; then systemctl "$@"; else chroot "$R" systemctl "$@"; fi; }
 list() { sed -e 's/#.*//' "$R/usr/share/gemini/$1" | xargs; }
 [ -n "$R" ] || systemctl daemon-reload
