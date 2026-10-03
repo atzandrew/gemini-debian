@@ -38,3 +38,5 @@ xbindkeys
 # battery in the panel: UPower + LXQt's power manager tray icon
 upower
 lxqt-powermanagement
+# compressed swap in RAM (needs CONFIG_ZRAM, boot image from 2026-10-03)
+zram-tools
