@@ -1,0 +1,7 @@
+# Gemini PDA: compressed swap in RAM (zram-tools / zramswap.service).
+# 50 % of RAM as zram, lzo-rle (fast; built into the kernel), and a high
+# priority so it is used before any disk swap. 4 GB RAM is tight with
+# Firefox/Plasma; this roughly doubles the usable headroom.
+ALGO=lzo-rle
+PERCENT=50
+PRIORITY=100

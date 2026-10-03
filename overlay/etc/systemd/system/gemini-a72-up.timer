@@ -1,0 +1,12 @@
+# Bring the two Cortex-A72 cores up once the system has settled. Doing it
+# during boot can wedge the device (gemini-nixos phase-2-on-glass.md P2), so
+# wait 5 minutes. Disable with: sudo systemctl disable gemini-a72-up.timer
+[Unit]
+Description=Bring up the A72 cores 5 minutes after boot
+
+[Timer]
+OnBootSec=5min
+Unit=gemini-a72-up.service
+
+[Install]
+WantedBy=timers.target
