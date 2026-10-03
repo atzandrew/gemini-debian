@@ -6,3 +6,6 @@
 busybox
 # part 4: Bluetooth (bluetoothd, bluetoothctl)
 bluez
+# polkit: lets non-root users manage NetworkManager (nmtui/nmcli) and,
+# later, the desktop's power/network controls
+polkitd
