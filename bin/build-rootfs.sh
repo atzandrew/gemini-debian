@@ -45,11 +45,16 @@ echo "    kernel: $KVER"
 
 mkdir -p "$STAGE/modules" "$STAGE/firmware"
 cp -rL "$SYS/kernel-modules/lib/modules/$KVER" "$STAGE/modules/"
+# NixOS links $SYS/firmware straight to <hardware.firmware>/lib/firmware
+# (nixos/modules/system/boot/kernel.nix), i.e. the firmware dir itself.
 if [ -d "$SYS/firmware/lib/firmware" ]; then
     cp -rL "$SYS/firmware/lib/firmware/." "$STAGE/firmware/"
+elif [ -d "$SYS/firmware" ]; then
+    cp -rL "$SYS/firmware/." "$STAGE/firmware/"
 else
-    die "$SYS has no firmware/lib/firmware"
+    die "$SYS has no firmware link"
 fi
+echo "    kernel build: $(readlink -f "$SYS/kernel")"
 cp "$NIXOS/config/keymaps/gemini-uk.map" "$STAGE/gemini-uk.map"
 chmod -R u+w "$STAGE"
 echo "$KVER" > "$STAGE/kver"
