@@ -1,0 +1,16 @@
+# US-silkscreen deltas on top of gemini-uk.map (loaded second by
+# gemini-keymap.service; loadkeys only replaces the entries listed here).
+# Matches the "us" variant in /usr/share/X11/xkb/symbols/gemini.
+# Fn = AltGr.
+	shift	keycode   3 = at
+	altgr	keycode   3 = grave
+	shift	keycode   4 = numbersign
+	altgr	keycode   4 = sterling
+	altgr	keycode  37 = semicolon
+	altgr	keycode  38 = quotedbl
+	altgr	keycode  50 = apostrophe
+# Key (5,0) emits KEY_APOSTROPHE; US cap is \ |, Fn = :
+	keycode  40 = backslash
+	shift	keycode  40 = bar
+	altgr	keycode  40 = colon
+	control	keycode  40 = Control_backslash

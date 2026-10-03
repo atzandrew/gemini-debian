@@ -1,5 +1,5 @@
 [Unit]
-Description=Gemini console keymap (UK layout, Fn layer, Shift+Fn+1..0 = F1..F10)
+Description=Gemini console keymap (US silkscreen: UK base + US deltas, Fn layer, Shift+Fn+1..0 = F1..F10)
 DefaultDependencies=no
 After=systemd-udevd.service
 Before=getty@tty1.service sysinit.target
@@ -9,6 +9,7 @@ ConditionPathExists=/usr/share/gemini/keymaps/gemini-uk.map
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/bin/loadkeys -C /dev/tty1 /usr/share/gemini/keymaps/gemini-uk.map
+ExecStart=/usr/bin/loadkeys -C /dev/tty1 /usr/share/gemini/keymaps/gemini-us-delta.map
 
 [Install]
 WantedBy=sysinit.target
