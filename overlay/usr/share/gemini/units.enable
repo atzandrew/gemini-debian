@@ -9,3 +9,4 @@ gemini-battery-guard.service
 gemini-backlight-default.service
 greetd.service
 gemini-a72-up.timer
+gemini-audio.service

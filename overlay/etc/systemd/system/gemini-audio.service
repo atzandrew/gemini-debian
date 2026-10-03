@@ -1,0 +1,14 @@
+# Playback route + speaker amp state at boot (see /usr/local/sbin/gemini-audio).
+# Switch outputs later with: sudo gemini-audio speaker|headphone|toggle
+[Unit]
+Description=Gemini audio route + speaker amps
+After=sound.target alsa-restore.service systemd-udevd.service
+Wants=sound.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gemini-audio boot
+
+[Install]
+WantedBy=multi-user.target

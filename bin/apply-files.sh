@@ -25,6 +25,8 @@ echo "apply-files: $n files installed"
 
 chmod 755 "$R"/usr/local/sbin/*
 chmod 600 "$R"/etc/NetworkManager/system-connections/*.nmconnection
+# sudoers drop-ins: sudo wants 0440 (gemini-audio amp switch, 2026-10-03)
+chmod 440 "$R"/etc/sudoers.d/gemini-*
 
 # Bluetooth: Privacy=off. bluetoothd's boot-time auto power-on runs
 # set-privacy, which the MT6630 rejects, leaving hci0 unpowered

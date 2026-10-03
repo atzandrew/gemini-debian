@@ -1,0 +1,52 @@
+#!/bin/bash
+# gemini-audio — Gemini PDA audio route + speaker amps.
+#
+#   gemini-audio route             connect playback to the headphone drivers
+#   gemini-audio speaker           speaker amps ON  (speakers + jack)
+#   gemini-audio headphone         speaker amps OFF (jack only)
+#   gemini-audio toggle | status
+#   gemini-audio boot              route + last saved output (gemini-audio.service)
+#
+# Hardware (gemini-nixos services/scripts/{audio-defaults.sh,speaker}, re-verified
+# on Debian 2026-10-03):
+#  - Card 0 'mt6797-mt6351'. Playback is silent until the AFE switches
+#    DL1 -> ADDA and the codec HP muxes are set (they boot Off/Open). DAPM only
+#    powers them while a stream runs, so leaving them set costs nothing.
+#    Needs the boot image with the mt6797 AFE component-probe fix (gemini-nixos
+#    2026-10-03); older kernels have no 'ADDA_DL_CH1 DL1_CH1' control.
+#  - The built-in speakers hang off the same HPL/HPR drivers through external
+#    amps enabled by SoC GPIO 243 + 244 (gpiochip0). No jack detection: with
+#    the amps on, speakers and jack both play.
+#  - Exiting gpioset does NOT return the pins low; -t0 sets once and exits.
+set -u
+CARD=0
+STATE=/var/lib/gemini/audio-output
+
+route() {
+    amixer -q -c "$CARD" cset name='ADDA_DL_CH1 DL1_CH1' on &&
+    amixer -q -c "$CARD" cset name='ADDA_DL_CH2 DL1_CH2' on &&
+    amixer -q -c "$CARD" sset 'HPL Mux' 'Audio Playback' &&
+    amixer -q -c "$CARD" sset 'HPR Mux' 'Audio Playback'
+}
+
+amps() { gpioset -c gpiochip0 -t0 243="$1" 244="$1"; }
+
+save() { mkdir -p "${STATE%/*}"; echo "$1" > "$STATE"; }
+
+current() { cat "$STATE" 2>/dev/null || echo speaker; }
+
+case "${1:-}" in
+    route)      route ;;
+    speaker)    amps 1 && save speaker ;;
+    headphone)  amps 0 && save headphone ;;
+    toggle)     if [ "$(current)" = speaker ]; then "$0" headphone; else "$0" speaker; fi
+                echo "output: $(current)" ;;
+    status)     echo "output: $(current)" ;;
+    boot)
+        # The card can appear a moment after this unit starts; retry briefly.
+        for _ in $(seq 20); do route 2>/dev/null && break; sleep 0.5; done
+        route || { echo "gemini-audio: route controls missing (old boot image?)" >&2; exit 1; }
+        if [ "$(current)" = headphone ]; then amps 0; else amps 1; fi
+        echo "gemini-audio: route set, output $(current)" ;;
+    *) echo "usage: gemini-audio route|speaker|headphone|toggle|status|boot" >&2; exit 2 ;;
+esac

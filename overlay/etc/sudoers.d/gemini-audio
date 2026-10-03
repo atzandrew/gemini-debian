@@ -1,0 +1,4 @@
+# Let audio-group users switch the speaker amps without a password
+# (sudo gemini-audio speaker|headphone|toggle|status). Needed until headphone
+# jack detection exists in the kernel (MT6351 ACCDET; see claude/sound.md).
+%audio ALL=(root) NOPASSWD: /usr/local/sbin/gemini-audio
