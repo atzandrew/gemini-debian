@@ -1,0 +1,8 @@
+// Gemini PDA: members of "sudo" may control NetworkManager without a password
+// (nmtui / nmcli connect, edit, enable). Single-user device; same trust as sudo.
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 &&
+        subject.isInGroup("sudo")) {
+        return polkit.Result.YES;
+    }
+});

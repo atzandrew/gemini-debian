@@ -22,7 +22,7 @@ tuigreet, LXQt and Firefox, porting as much of gemini-nixos as possible.
 | 1 | Decisions + repo skeleton | done (2026-10-02): trixie, replace userdata, separate repo |
 | 2 | Headless base rootfs: build script, modules/firmware, user, SSH, USB network, console keymap, growfs | **done** — booted + logged in 2026-10-02 (second flash; first had /etc,/usr at 0700) |
 | 3 | Boot integration | **done / not needed**: the flashed boot image's initrd falls back to the Debian rootfs (verified) |
-| 4 | Hardware services: GPU power-on, panfrost load, A72 up (opt-in), battery guard, backlight default, Wi-Fi (MT6630 CONSYS + NVRAM + NM), Bluetooth (hci_stp), WDT safe reboot, suspend masked | **written, not built** — ships as image + `out/gemini-update.tar.gz` (docs/updating.md) |
+| 4 | Hardware services: GPU power-on, panfrost load, A72 up (opt-in), battery guard, backlight default, Wi-Fi (MT6630 CONSYS + NVRAM + NM), Bluetooth (hci_stp), WDT safe reboot, suspend masked | **done** 2026-10-02 — Wi-Fi scanning/connected, reboot OK; polkit + quiet console added; boot 68 s -> 27.5 s via para=boot-debian |
 | 5 | Graphics: confirm card0 + kmsro with stock Mesa 25.0.7; rebuild Mesa with `mesa-panfrost-geminipda-25.0.7.patch` (T880 polygon-list fix) | todo |
 | 6 | Desktop: greetd + tuigreet, LXQt (X11 first on trixie; Wayland session package is only in testing), panel rotation, touch mapping, `gemini` xkb layout, Firefox ESR | todo |
 | 7 | gemcli (Rust): silver-button sleep (with the SSD2092 touch fix), speaker switching | todo |
@@ -50,6 +50,11 @@ tuigreet, LXQt and Firefox, porting as much of gemini-nixos as possible.
   replace with this unit's own record from the nvram backup (part 4).
 - Audio has never worked on this unit; out of scope.
 - Charger input current (wall brick detected as a 500 mA PC port) not automated yet.
+- Poweroff is not a true off on this hardware (gemini-nixos docs/power-states.md G1); reboot works.
+- Initrd (gemini-nixos) should stop scanning once a single valid rootfs is found; para marker is the workaround.
+- Early-boot console uses only the bottom third of the panel (same on NixOS; fine once the OS is up) — cosmetic.
+- gemini-wifi-internal takes ~15 s (WMT power-on); doesn't block login.
+- Kernel now has exFAT (gemini-nixos d343495).
 
 ## How changes reach the device
 

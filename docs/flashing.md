@@ -67,6 +67,23 @@ both in one session, like the boot-image flash.)
 After the first flash, later changes don't need a reflash: see
 [updating.md](updating.md).
 
+## 5. Once: set the boot selector to Debian (saves ~30 s per boot)
+
+The boot image's initrd defaults to "look for NixOS"; with no NixOS it
+rescans every partition for 30 s before falling back to Debian. Tell it to
+look for Debian directly (the `para` boot-selector marker; LK ignores
+anything but `boot-recovery`):
+
+```sh
+grep PARTNAME /sys/class/block/mmcblk0p2/uevent     # must say PARTNAME=para
+printf 'boot-debian\0' | sudo dd of=/dev/mmcblk0p2 bs=32 count=1 conv=sync,fsync
+sudo od -c -N 32 /dev/mmcblk0p2                     # b o o t - d e b i a n \0 ...
+```
+
+Measured 2026-10-02: kernel+initrd 44 s -> 3.7 s (`systemd-analyze`).
+Undo: `sudo dd if=/dev/zero of=/dev/mmcblk0p2 bs=32 count=1 conv=fsync`.
+The marker lives outside userdata, so it survives reflashing userdata.
+
 ## Quick checks once logged in
 
 ```sh
