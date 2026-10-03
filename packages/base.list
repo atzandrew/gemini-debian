@@ -1,0 +1,38 @@
+# Part 2: headless base. One package per line; # comments allowed.
+# Installed on top of mmdebstrap's minbase variant.
+
+# init + core
+systemd-sysv
+udev
+dbus
+kmod
+procps
+psmisc
+e2fsprogs
+locales
+tzdata
+ca-certificates
+sudo
+less
+nano
+bash-completion
+
+# console
+kbd
+
+# networking
+iproute2
+iputils-ping
+network-manager
+wpasupplicant
+iw
+rfkill
+wireless-regdb
+openssh-server
+systemd-timesyncd
+curl
+
+# hardware poking
+usbutils
+i2c-tools
+evtest

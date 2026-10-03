@@ -1,0 +1,3 @@
+# Gemini PDA: let unprivileged tools (brightnessctl, desktop sliders) write
+# the panel backlight (gemini-nixos services/plumbing.nix).
+SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/chmod 0666 /sys/class/backlight/%k/brightness /sys/class/backlight/%k/bl_power"

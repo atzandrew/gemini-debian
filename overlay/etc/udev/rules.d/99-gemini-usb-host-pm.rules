@@ -1,0 +1,7 @@
+# Gemini PDA: keep USB host controllers and devices out of runtime
+# autosuspend. There is no USB wakeup source wired, so autosuspend kills
+# connect detection until reboot (gemini-nixos services/gemini-pda.nix,
+# B-19 / outstanding.md item 5).
+ACTION=="add", SUBSYSTEM=="platform", KERNEL=="11270000.usb", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="platform", KERNEL=="11271000.usb", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"

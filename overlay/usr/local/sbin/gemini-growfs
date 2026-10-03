@@ -1,0 +1,9 @@
+#!/bin/sh
+# Online-grow the ext4 root to the full partition, once.
+# The flashed image is only IMAGE_SIZE (config.env) so flashing is quick.
+set -e
+dev=$(findmnt -no SOURCE /)
+echo "growing $dev"
+resize2fs "$dev"
+mkdir -p /var/lib/gemini
+touch /var/lib/gemini/growfs-done

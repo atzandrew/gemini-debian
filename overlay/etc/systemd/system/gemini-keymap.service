@@ -1,0 +1,14 @@
+[Unit]
+Description=Gemini console keymap (UK layout, Fn layer, Shift+Fn+1..0 = F1..F10)
+DefaultDependencies=no
+After=systemd-udevd.service
+Before=getty@tty1.service sysinit.target
+ConditionPathExists=/usr/share/gemini/keymaps/gemini-uk.map
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/loadkeys -C /dev/tty1 /usr/share/gemini/keymaps/gemini-uk.map
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Grow the root filesystem to fill the userdata partition (first boot)
+After=local-fs.target
+ConditionPathExists=!/var/lib/gemini/growfs-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gemini-growfs
+
+[Install]
+WantedBy=multi-user.target

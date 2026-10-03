@@ -1,0 +1,19 @@
+# USB network link to Dragon (g_ether gadget). Addresses are filled in from
+# config.env at build time. Low priority default route so Wi-Fi wins.
+[connection]
+id=usb0
+type=ethernet
+interface-name=usb0
+autoconnect=true
+
+[ethernet]
+
+[ipv4]
+method=manual
+address1=@USB_ADDR@
+gateway=@USB_GW@
+dns=1.1.1.1;
+route-metric=1000
+
+[ipv6]
+method=disabled

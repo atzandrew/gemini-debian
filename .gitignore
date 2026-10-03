@@ -1,0 +1,4 @@
+# build scratch (kernel modules/firmware copies, password hash)
+/build/
+# finished images
+/out/
