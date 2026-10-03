@@ -17,9 +17,23 @@ if [ -n "$KVER" ] && [ "$KVER" != "$(uname -r)" ]; then
     exit 1
 fi
 
+export DEBIAN_FRONTEND=noninteractive   # no debconf questions mid-install
 if compgen -G "debs/*.deb" >/dev/null; then
     echo "==> packages ($(ls debs/*.deb | wc -l) .debs)"
-    dpkg -i --skip-same-version debs/*.deb
+    # apt orders a large set correctly (Pre-Depends, e.g. python3-minimal);
+    # a bare `dpkg -i debs/*.deb` can try to configure a package before its
+    # dependency (seen 2026-10-02 with the desktop bundle). Works offline:
+    # every dependency is either installed already or in debs/.
+    if ! apt-get install -y --no-install-recommends ./debs/*.deb; then
+        echo "!! apt-get failed; falling back to dpkg" >&2
+        dpkg -i --skip-same-version debs/*.deb || true
+        dpkg --configure -a
+    fi
+fi
+
+if compgen -G "mesa/*.deb" >/dev/null; then
+    echo "==> Gemini Mesa"
+    bash ./mesa-upgrade.sh "$PWD/mesa"
 fi
 
 echo "==> files + services"

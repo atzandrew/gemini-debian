@@ -44,6 +44,10 @@ cp -a /work/build/stage/files "$B/files"
 cp /work/bin/apply-files.sh "$B/apply-files.sh"
 cp /work/bin/bundle-install.sh "$B/install.sh"
 cp /work/build/stage/build-info "$B/build-info"
+cp /work/bin/mesa-upgrade.sh "$B/mesa-upgrade.sh"
+if compgen -G "/work/out/mesa/*.deb" >/dev/null; then
+    mkdir -p "$B/mesa" && cp /work/out/mesa/*.deb "$B/mesa/"
+fi
 tar -C "$B" --owner=0 --group=0 -czf "$BUNDLE" .
 echo "    bundle: $(du -h "$BUNDLE" | cut -f1) ($(ls "$B/debs" | wc -l) debs)"
 
