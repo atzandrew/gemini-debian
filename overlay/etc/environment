@@ -1,0 +1,9 @@
+# Gemini PDA session environment (2026-10-03 display investigation; see
+# gemini-nixos / claude status notes "Plasma / display performance").
+# AFBC off: panfrost can't CPU-map AFBC textures, so Qt's partial uploads
+# became thousands of tiny GPU jobs (menus took seconds). 72 vs ~1950 submits.
+PAN_MESA_DEBUG=noafbc
+# KWin commits 1.5 ms before the predicted vblank, but geminipda-drm's
+# full-frame copy takes ~4-8 ms -> every flip one tick late (Plasma stuck at
+# 30 fps). 12 ms margin -> ~60 fps.
+KWIN_DRM_OVERRIDE_SAFETY_MARGIN=12000

@@ -24,6 +24,7 @@ done < <(cd "$FILES" && find . -type f -print0)
 echo "apply-files: $n files installed"
 
 chmod 755 "$R"/usr/local/sbin/*
+[ ! -d "$R/usr/local/bin" ] || chmod 755 "$R"/usr/local/bin/*
 chmod 600 "$R"/etc/NetworkManager/system-connections/*.nmconnection
 # sudoers drop-ins: sudo wants 0440 (gemini-audio amp switch, 2026-10-03)
 chmod 440 "$R"/etc/sudoers.d/gemini-*

@@ -1,0 +1,6 @@
+#!/bin/bash
+# CPU: fixed shell loop on fast core 9 (seconds; lower = faster)
+cpu=$( { TIMEFORMAT=%R; time taskset -c 9 sh -c 'i=0; while [ $i -lt 1000000 ]; do i=$((i+1)); done'; } 2>&1 )
+# Memory: write 3.2 GB through a 16 MB buffer on core 9 (dd reports MB/s)
+mem=$(taskset -c 9 dd if=/dev/zero of=/dev/null bs=16M count=200 2>&1 | tail -1 | awk -F, '{print $NF}')
+echo "cpu ${cpu}s   mem ${mem}   battery $(($(cat /sys/class/thermal/thermal_zone1/temp)/1000))C"

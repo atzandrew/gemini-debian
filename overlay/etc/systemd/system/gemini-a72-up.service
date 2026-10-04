@@ -11,3 +11,7 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=-/usr/sbin/modprobe sramldo-smc
 ExecStart=/usr/local/sbin/cl2-up.sh
+# Unbound workqueues (incl. the geminipda-drm scanout copy) onto the A72s
+# once they are online: avg full-frame copy 9.8 -> 7.9 ms (2026-10-03).
+# Done here rather than in tmpfiles because the A72s are offline at boot.
+ExecStartPost=-/bin/sh -c 'echo 300 > /sys/devices/virtual/workqueue/cpumask'

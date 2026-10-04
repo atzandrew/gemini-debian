@@ -37,6 +37,18 @@ if [ -n "$EXTRA" ]; then
     cp "$R"/var/cache/apt/archives/*.deb "$B/debs/" 2>/dev/null || true
     # shellcheck disable=SC2086
     in_chroot apt-get install -y -q --no-install-recommends $EXTRA
+    # ---- desktop (packages/desktop.list): WITH Recommends, as installed
+    # by hand on the tested device (Plasma needs its recommended pieces).
+    DESKTOP=$(sed -e 's/#.*//' /work/packages/desktop.list | xargs)
+    if [ -n "$DESKTOP" ]; then
+        echo "    customize: desktop packages (with recommends): $DESKTOP"
+        # shellcheck disable=SC2086
+        in_chroot apt-get install -y -q --download-only $DESKTOP
+        cp "$R"/var/cache/apt/archives/*.deb "$B/debs/" 2>/dev/null || true
+        # shellcheck disable=SC2086
+        in_chroot apt-get install -y -q $DESKTOP
+    fi
+    in_chroot apt-get clean
     echo "      bundle debs: $(ls "$B/debs" | wc -l)"
     rm -f "$R/usr/sbin/policy-rc.d" "$R/etc/resolv.conf"
     [ -z "$rcbak" ] || mv "$R/etc/resolv.conf.gemini-bak" "$R/etc/resolv.conf"
@@ -107,13 +119,16 @@ fix_rel /etc/os-release ../usr/lib/os-release
 [ -x "$R/usr/sbin/init" ] || { echo "!! /usr/sbin/init missing (systemd-sysv)"; exit 1; }
 [ -f "$R/etc/os-release" ] || { echo "!! /etc/os-release missing"; exit 1; }
 [ -d "$R/usr/lib/modules/$KVER/kernel" ] || { echo "!! modules not installed"; exit 1; }
+[ -f "$R/usr/lib/modules/$KVER/extra/mt6351-gauge.ko" ] || { echo "!! mt6351-gauge.ko missing (fuel gauge)"; exit 1; }
+in_chroot modinfo -k "$KVER" -n mt6351_gauge >/dev/null 2>&1 || { echo "!! mt6351_gauge not in modules.dep"; exit 1; }
 # Core directories must be world-readable/traversable or nothing but root works.
 for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr/share /var /home /data; do
     m=$(stat -c %a "$R$d")
     [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
 done
 m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
-for t in busybox i2cset iw tuigreet startx Xorg xrandr xinput xrdb startlxqt openbox firefox-esr; do
+for t in busybox i2cset iw tuigreet startx Xorg xrandr xinput xrdb startlxqt openbox firefox-esr \
+         startplasma-wayland kwin_wayland labwc foot wlr-randr perf; do
     in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (needed by device scripts)"; exit 1; }
 done
 [ -f "$R/usr/share/X11/xkb/symbols/gemini" ] || { echo "!! gemini xkb symbols missing"; exit 1; }

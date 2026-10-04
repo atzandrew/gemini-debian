@@ -1,0 +1,29 @@
+# Desktop packages installed WITH their Recommends (2026-10-04) — the way
+# they were installed by hand on the Gemini (apt install ...), so the image
+# matches what was tested. Installed after extra.list and before the Gemini
+# Mesa (held +gemini1 packages win). Shipped as .debs in the update bundle
+# like extra.list.
+#
+# KDE Plasma 6 (Wayland; tested daily desktop 2026-10-03)
+plasma-desktop
+plasma-workspace
+kwin-wayland
+plasma-nm
+powerdevil
+bluedevil
+breeze
+kscreen
+systemsettings
+kde-cli-tools
+konsole
+dolphin
+polkit-kde-agent-1
+xdg-desktop-portal-kde
+qt6-wayland
+# labwc (lightest Wayland session: damage-clipped copies, locked 60 Hz)
+labwc
+foot
+wlr-randr
+# browsers tried on the device (firefox-esr is in extra.list)
+falkon
+epiphany-browser
