@@ -35,7 +35,7 @@ Gemini. Result: `out/gemini-debian-rootfs.img` (3 GiB, mostly empty).
 
 ```sh
 zstd -T0 -f out/gemini-debian-rootfs.img -o out/gemini-debian-rootfs.img.zst
-scp out/gemini-debian-rootfs.img.zst atzero@10.0.20.129:/home/atzero/
+scp out/gemini-debian-rootfs.img.zst atzero@192.168.0.146:/home/atzero/   # Dragon
 ```
 
 ## 3. Flash (Dragon, Gemini on USB)
@@ -50,6 +50,16 @@ mtk reset
 
 (`mtk multi "w userdata /home/atzero/gemini-debian-rootfs.img;reset"` does
 both in one session, like the boot-image flash.)
+
+**After `mtk` says "Reset command was sent" (2026-10-04):** unplug the USB
+cable from Dragon right away and power on with **Esc/On alone**. Left on a
+PC's USB, LK takes the power-off-charging path (gemini-nixos
+docs/disaster-recovery "POC trap") and the Gemini can look dead, while
+Dragon's dmesg loops on `device descriptor read/64, error -110`. If it
+doesn't start: hold **Esc/On alone ~10 s** (PMIC hardware reset), release,
+then press Esc/On ~3 s. Don't use Esc/On + the silver side button: that
+combo is RTC FAC_RESET and boots RECOVERY. A low battery after a long flash
+can also keep it dark; charge from a wall brick for 15-30 min, then retry.
 
 ## 4. First boot
 

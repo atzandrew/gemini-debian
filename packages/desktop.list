@@ -8,6 +8,8 @@
 plasma-desktop
 plasma-workspace
 kwin-wayland
+# volume applet + Sound page in System Settings (missing in the first image)
+plasma-pa
 plasma-nm
 powerdevil
 bluedevil

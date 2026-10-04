@@ -38,15 +38,18 @@ if [ -n "$EXTRA" ]; then
     # shellcheck disable=SC2086
     in_chroot apt-get install -y -q --no-install-recommends $EXTRA
     # ---- desktop (packages/desktop.list): WITH Recommends, as installed
-    # by hand on the tested device (Plasma needs its recommended pieces).
+    # by hand on the tested device (Plasma needs its recommended pieces,
+    # e.g. plasma-pa = the volume applet + Sound settings page). Explicit
+    # --install-recommends: the mmdebstrap chroot does not install them by
+    # default (2026-10-04 image came up without plasma-pa).
     DESKTOP=$(sed -e 's/#.*//' /work/packages/desktop.list | xargs)
     if [ -n "$DESKTOP" ]; then
         echo "    customize: desktop packages (with recommends): $DESKTOP"
         # shellcheck disable=SC2086
-        in_chroot apt-get install -y -q --download-only $DESKTOP
+        in_chroot apt-get install -y -q --install-recommends --download-only $DESKTOP
         cp "$R"/var/cache/apt/archives/*.deb "$B/debs/" 2>/dev/null || true
         # shellcheck disable=SC2086
-        in_chroot apt-get install -y -q $DESKTOP
+        in_chroot apt-get install -y -q --install-recommends $DESKTOP
     fi
     in_chroot apt-get clean
     echo "      bundle debs: $(ls "$B/debs" | wc -l)"
@@ -127,10 +130,11 @@ for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr
     [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
 done
 m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
-for t in busybox i2cset iw tuigreet startx Xorg xrandr xinput xrdb startlxqt openbox firefox-esr \
-         startplasma-wayland kwin_wayland labwc foot wlr-randr perf; do
+for t in busybox i2cset iw tuigreet startx Xorg xrandr xinput xrdb firefox-esr \
+         startplasma-wayland kwin_wayland labwc foot wlr-randr perf wpctl; do
     in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (needed by device scripts)"; exit 1; }
 done
+[ -f "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume/metadata.json" ] || [ -d "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume" ] || { echo "!! plasma-pa (volume applet) missing"; exit 1; }
 [ -f "$R/usr/share/X11/xkb/symbols/gemini" ] || { echo "!! gemini xkb symbols missing"; exit 1; }
 [ -f "$R/data/nvram/APCFG/APRDEB/WIFI" ] || { echo "!! Wi-Fi NVRAM missing"; exit 1; }
 [ -f "$R/usr/lib/firmware/WIFI_RAM_CODE_6797" ] || { echo "!! WIFI_RAM_CODE_6797 missing"; exit 1; }
