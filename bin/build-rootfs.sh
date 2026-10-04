@@ -63,6 +63,14 @@ fi
 chmod -R u+w "$STAGE/firmware"
 rm -f "$STAGE/firmware/regulatory.db" "$STAGE/firmware/regulatory.db.p7s"
 echo "    kernel build: $(readlink -f "$SYS/kernel")"
+# MT6351 fuel gauge (gemini-nixos devices/planet-geminipda/kernel/modules/
+# mt6351-gauge): an out-of-tree module built against the same kernel
+# derivation, so it lands in the module tree's extra/ (customize.sh runs
+# depmod). Loaded at boot by etc/modules-load.d/gemini-gauge.conf.
+GAUGE=$(cd "$NIXOS" && nix build .#packages.aarch64-linux.mt6351-gauge --print-out-paths --no-link)
+[ -f "$GAUGE/mt6351-gauge.ko" ] || die "mt6351-gauge build has no mt6351-gauge.ko ($GAUGE)"
+install -D -m 644 "$GAUGE/mt6351-gauge.ko" "$STAGE/modules/$KVER/extra/mt6351-gauge.ko"
+echo "    fuel gauge module: $GAUGE"
 chmod -R u+w "$STAGE"
 echo "$KVER" > "$STAGE/kver"
 {

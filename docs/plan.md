@@ -27,6 +27,7 @@ tuigreet, LXQt and Firefox, porting as much of gemini-nixos as possible.
 | 6 | Desktop: greetd + tuigreet, LXQt on X11, rotation (xrandr left), touch (map-to-output), 1.5x via Xft.dpi, `gemini` xkb layout, Firefox ESR | **done** 2026-10-02 — logged in, rotation + touch correct; scaling uneven (X11); greetd needed Conflicts=getty@tty1 |
 | 7 | gemcli (Rust): silver-button sleep (with the SSD2092 touch fix), speaker switching | todo |
 | 8 | Polish: kernel + gemini support files as .debs, apt-safe | later |
+| 9 | Consolidation (2026-10-04): everything hand-tuned on the device folded into the image — Plasma 6 + labwc (`packages/desktop.list`, with Recommends), perf/strace/mesa-utils, `/etc/environment` (noafbc, KWin margin), geminipda-drm `cache_sync=0`, workqueue → A72s (in gemini-a72-up), MT6351 fuel gauge module + gauge-aware battery-guard, skel configs (KWin scale 2 / rotation, labwc), `drm-stats` + `gemini-speedtest`. Image 6G. Collector: `bin/collect-device-state.sh` | **written** |
 
 ## Part 2 contents (what the first image has)
 

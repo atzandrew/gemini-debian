@@ -45,3 +45,7 @@ alsa-utils
 gpiod
 pipewire-audio
 rtkit
+# ---- tools (2026-10-04, from the hand-tuned device): profiling + GL info
+linux-perf
+strace
+mesa-utils

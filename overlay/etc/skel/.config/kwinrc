@@ -1,0 +1,6 @@
+[Plugins]
+blurEnabled=false
+contrastEnabled=false
+
+[Xwayland]
+Scale=2
