@@ -10,7 +10,9 @@ bluez
 # later, the desktop's power/network controls
 polkitd
 
-# ---- part 6: desktop (X11 + LXQt) behind greetd/tuigreet ----
+# ---- part 6: X11 base behind greetd/tuigreet (LXQt itself removed
+# 2026-10-04: X11 glitches; Plasma Wayland + labwc are the desktops, see
+# desktop.list) ----
 greetd
 tuigreet
 xserver-xorg-core
@@ -24,20 +26,17 @@ libgl1-mesa-dri
 libegl-mesa0
 libglx-mesa0
 dbus-user-session
-lxqt-core
-lxqt-themes
-openbox
+
 breeze-icon-theme
-qterminal
-nm-tray
+
 fonts-dejavu-core
 firefox-esr
 # brightness: Fn+B/N via xbindkeys -> brightnessctl
 brightnessctl
 xbindkeys
-# battery in the panel: UPower + LXQt's power manager tray icon
+# battery: UPower (Plasma's battery applet reads it)
 upower
-lxqt-powermanagement
+
 # compressed swap in RAM (needs CONFIG_ZRAM, boot image from 2026-10-03)
 zram-tools
 # ---- sound (2026-10-03): amixer/speaker-test, gpioset (speaker amps), PipeWire
