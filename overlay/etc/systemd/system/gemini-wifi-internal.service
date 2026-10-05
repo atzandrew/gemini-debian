@@ -7,7 +7,9 @@
 Description=Internal Wi-Fi (MT6630 CONSYS) bring-up -> wlan0
 After=systemd-modules-load.service gemini-gpu-poweron.service
 Wants=gemini-gpu-poweron.service
-Before=NetworkManager.service
+# No Before=NetworkManager.service (dropped 2026-10-04): the bring-up takes
+# ~15 s, and NM -> network.target -> systemd-user-sessions -> greetd made the
+# login screen wait for it. NM picks wlan0 up via udev when it appears.
 
 [Service]
 Type=oneshot
