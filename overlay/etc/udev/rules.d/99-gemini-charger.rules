@@ -1,9 +1,13 @@
 # Gemini PDA: the BQ25896 detects most wall chargers as a 500 mA PC port,
 # so it draws only 0.5 A and barely charges with the screen on. Raise the
-# INPUT limit to 1.5 A whenever a charger is attached (the chip resets it on
-# every plug-in). The battery-side charge current is left as is.
-# 1.5 A was checked on 2026-10-03: Fast charge, battery ~37 C. If a weak
-# source (a real PC port) sags, the chip's input-voltage regulation
-# (VINDPM) backs the current off on its own.
+# INPUT limit to 2.5 A whenever a charger is attached (the chip resets it on
+# every plug-in). The battery-side charge current (DTS ti,charge-current
+# 2.048 A) is left as is. Vendor Android allowed 3.2 A in / 2.05 A charge.
+# 2026-10-05: 2.5 A on the user's wall brick, Plasma running, low SOC:
+# 1.54 A into the cell (gauge current_now) vs ~0.5-0.6 A at 1.5 A; no
+# input sag; battery only mildly warm by hand. The BQ "temp" reading stayed
+# at 37.0 C at both limits, so the TS pin is probably NOT wired to the cell
+# NTC - don't rely on it. If a weak source (a real PC port) sags, the chip's
+# input-voltage regulation (VINDPM) backs the current off on its own.
 # Change: edit the value below, then `sudo udevadm control --reload`.
-ACTION=="add|change", SUBSYSTEM=="power_supply", KERNEL=="bq25890-charger-*", ATTR{online}=="1", ATTR{input_current_limit}="1500000"
+ACTION=="add|change", SUBSYSTEM=="power_supply", KERNEL=="bq25890-charger-*", ATTR{online}=="1", ATTR{input_current_limit}="2500000"
