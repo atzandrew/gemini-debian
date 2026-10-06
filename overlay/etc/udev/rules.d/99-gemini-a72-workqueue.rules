@@ -1,0 +1,7 @@
+# Unbound workqueues (incl. the geminipda-drm scanout copy) onto the A72s
+# (cpu8+9, mask 300) once cpu9 is online: avg full-frame copy 9.8 -> 7.9 ms
+# (2026-10-03). The kernel brings cpu8/9 up itself (~8 s after boot,
+# mt6797-cl2-power, 2026-10-06); "add" covers coldplug if that happened
+# before udevd started, "online" a later hotplug.
+SUBSYSTEM=="cpu", KERNEL=="cpu9", ACTION=="add|online", ATTR{online}=="1", \
+  RUN+="/bin/sh -c 'echo 300 > /sys/devices/virtual/workqueue/cpumask'"

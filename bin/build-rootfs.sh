@@ -94,7 +94,9 @@ sed -i -e "s|@USB_ADDR@|$USB_ADDR|" -e "s|@USB_GW@|$USB_GW|" \
 # Device scripts, verbatim (gemini-nixos services/scripts/). They call
 # busybox devmem, i2cset, iw, modprobe by name — all on Debian's PATH.
 SCRIPTS="gemini-gpu-poweron.sh panfrost-load.sh wifi-internal battery-guard.sh
-         backlight battstat bq25896-raw.sh cl2-up.sh cl2-down.sh gemini-wdt-reboot"
+         backlight battstat bq25896-raw.sh gemini-wdt-reboot"
+# (cl2-up.sh / cl2-down.sh dropped 2026-10-06: the kernel powers the A72
+# cluster itself — gemini-nixos mt6797-cl2-power driver, docs/cpu-dvfs.md.)
 mkdir -p "$F/usr/local/sbin"
 for s in $SCRIPTS; do
     [ -f "$NIXOS/services/scripts/$s" ] || die "missing $NIXOS/services/scripts/$s"
