@@ -5,7 +5,7 @@
 #   - update bundle:  install.sh        ->  apply-files.sh / ./files   (on the Gemini)
 #
 # FILES mirrors the root filesystem (built by bin/build-rootfs.sh from
-# overlay/ + scripts/keymap/NVRAM copied out of gemini-nixos).
+# overlay/ + scripts/keymap/NVRAM template copied out of gemini-nixos).
 set -euo pipefail
 ROOT=${1:?usage: apply-files.sh ROOT FILES}
 FILES=${2:?usage: apply-files.sh ROOT FILES}
@@ -58,11 +58,22 @@ if [ -f "$UP" ]; then
     setkey CriticalPowerAction Ignore
 fi
 
+# SDDM's greeter runs KWin as the "sddm" user: its output config (rotation,
+# scale) is in the files tree under /var/lib/sddm/.config and must be the
+# user's own (KWin rewrites it).
+if [ -d "$R/var/lib/sddm/.config" ]; then
+    if [ -z "$R" ]; then chown -R sddm:sddm /var/lib/sddm/.config
+    else chroot "$R" chown -R sddm:sddm /var/lib/sddm/.config; fi
+fi
+
 sc() { if [ -z "$R" ]; then systemctl "$@"; else chroot "$R" systemctl "$@"; fi; }
-list() { sed -e 's/#.*//' "$R/usr/share/gemini/$1" | xargs; }
+list() { [ -f "$R/usr/share/gemini/$1" ] || return 0; sed -e 's/#.*//' "$R/usr/share/gemini/$1" | xargs; }
 [ -n "$R" ] || systemctl daemon-reload
+# Replaced units first (e.g. greetd, which also claims display-manager.service);
+# a unit that isn't installed is fine.
+for u in $(list units.disable); do sc disable "$u" >/dev/null 2>&1 || :; done
 # shellcheck disable=SC2046
 sc enable $(list units.enable)
 # shellcheck disable=SC2046
 sc mask $(list units.mask)
-echo "apply-files: units enabled/masked"
+echo "apply-files: units enabled/disabled/masked"

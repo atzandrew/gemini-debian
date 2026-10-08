@@ -1,0 +1,147 @@
+#!/bin/bash
+# gemini-wifi-nvram — give the Wi-Fi driver THIS Gemini's own NVRAM record
+# (Wi-Fi MAC address + factory TX-power calibration).
+#
+# wlan_gen3 reads its record from /data/nvram/APCFG/APRDEB/WIFI when Wi-Fi
+# comes up (gemini-wifi-internal.service runs after this). Every Gemini has
+# its own record, written at the factory into the Android "nvdata" partition
+# (ext4, untouched by installing Debian). Images must NOT ship one unit's
+# copy: every Gemini would get the same MAC (two on one network break each
+# other's Wi-Fi) and another radio's calibration.
+#
+# What it does, in order:
+#   1. A record copied from this unit's nvdata is already in place -> done.
+#   2. Copy APCFG/APRDEB/WIFI out of the nvdata partition (read-only: debugfs
+#      without -w never writes, nothing is mounted) and check it.
+#   3. nvdata unreadable or no valid record there:
+#      - an existing record of unknown origin (older images shipped one) is
+#        kept as it is, with a warning;
+#      - otherwise the generic template is used with a MAC made from this
+#        unit's eMMC serial (stable, unique, "locally administered"), with a
+#        warning: the TX calibration is then NOT this unit's.
+#   The source is noted in WIFI.source; step 2 is retried on every boot until
+#   it succeeds.
+#
+#   gemini-wifi-nvram            what the unit runs (steps above)
+#   gemini-wifi-nvram status     source, record MAC, wlan0 MAC, nvdata record
+#   gemini-wifi-nvram --force    re-copy from nvdata even if a record is there
+set -u
+DIR=/data/nvram/APCFG/APRDEB
+DST=$DIR/WIFI
+MARK=$DIR/WIFI.source
+TEMPLATE=/usr/share/gemini/wifi/WIFI.template
+REC=/APCFG/APRDEB/WIFI             # path inside the nvdata filesystem
+
+say() { echo "gemini-wifi-nvram: $*"; }
+
+# Partition device for a GPT name (by-partlabel, else sysfs PARTNAME).
+find_part() {
+    local i u
+    for i in $(seq 1 10); do
+        [ -e "/dev/disk/by-partlabel/$1" ] && { readlink -f "/dev/disk/by-partlabel/$1"; return 0; }
+        for u in /sys/class/block/*/uevent; do
+            grep -qx "PARTNAME=$1" "$u" 2>/dev/null && { echo "/dev/$(basename "$(dirname "$u")")"; return 0; }
+        done
+        sleep 1
+    done
+    return 1
+}
+
+mac_of() { od -An -tx1 -j4 -N6 "$1" 2>/dev/null | xargs | tr ' ' ':'; }
+
+# A plausible WIFI_CFG_PARAM_STRUCT: sane size, non-zero own version,
+# unicast non-zero MAC at offset 4.
+why_invalid() {
+    local f=$1 size ver mac first
+    [ -s "$f" ] || { echo "empty or missing"; return; }
+    size=$(stat -c %s "$f")
+    { [ "$size" -ge 256 ] && [ "$size" -le 4096 ]; } || { echo "size $size"; return; }
+    ver=$(od -An -tu2 -N2 "$f" | xargs)
+    [ "${ver:-0}" -gt 0 ] || { echo "version 0"; return; }
+    mac=$(mac_of "$f")
+    case "$mac" in
+        00:00:00:00:00:00|ff:ff:ff:ff:ff:ff) echo "MAC $mac"; return ;;
+    esac
+    first=$((16#${mac%%:*}))
+    [ $((first & 1)) -eq 0 ] || { echo "multicast MAC $mac"; return; }
+}
+valid() { [ -z "$(why_invalid "$1")" ]; }
+
+# Copy the record out of nvdata into $1. Prints the reason on failure.
+from_nvdata() {
+    local out=$1 part err
+    part=$(find_part nvdata) || { echo "no nvdata partition"; return 1; }
+    rm -f "$out"
+    err=$(debugfs -R "dump $REC $out" "$part" 2>&1 >/dev/null | grep -v '^debugfs ')
+    [ -s "$out" ] || { echo "$part: no $REC (${err:-empty})"; return 1; }
+    local w; w=$(why_invalid "$out")
+    [ -z "$w" ] || { echo "$part: record invalid ($w)"; return 1; }
+    echo "$part"
+}
+
+# Stable unit-specific locally administered MAC (02:xx:xx:xx:xx:xx).
+unit_mac() {
+    local d id=""
+    for d in /sys/class/block/mmcblk[0-9]; do
+        [ "$(cat "$d/device/type" 2>/dev/null)" = MMC ] && { id=$(cat "$d/device/cid"); break; }
+    done
+    [ -n "$id" ] || id=$(cat /etc/machine-id)
+    printf 'gemini-wlan:%s' "$id" | sha256sum | cut -c1-10 | sed 's/../:&/g; s/^/02/'
+}
+
+install_rec() { # $1 = file, $2 = source note
+    mkdir -p "$DIR"
+    if [ -f "$DST" ] && ! cmp -s "$1" "$DST"; then
+        cp -p "$DST" "$DST.prev"
+        say "previous record (MAC $(mac_of "$DST")) saved as $DST.prev"
+    fi
+    install -m 644 "$1" "$DST"
+    echo "$2 $(date -Is)" > "$MARK"
+}
+
+src() { cut -d' ' -f1 "$MARK" 2>/dev/null; }
+
+case "${1:-}" in
+status)
+    echo "record:  $DST"
+    echo "source:  $(cat "$MARK" 2>/dev/null || echo 'unknown (not written by this tool)')"
+    echo "MAC:     $(mac_of "$DST" 2>/dev/null || echo -)  $( [ -f "$DST" ] && { w=$(why_invalid "$DST"); echo "${w:-valid}"; })"
+    echo "wlan0:   $(cat /sys/class/net/wlan0/address 2>/dev/null || echo 'not up')"
+    t=$(mktemp); if r=$(from_nvdata "$t"); then
+        echo "nvdata:  $r  MAC $(mac_of "$t")  $(cmp -s "$t" "$DST" && echo '(same as the record in use)' || echo '(DIFFERS from the record in use)')"
+    else echo "nvdata:  $r"; fi
+    rm -f "$t"
+    exit 0 ;;
+--force) FORCE=1 ;;
+"") FORCE=0 ;;
+*) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac
+
+if [ "$FORCE" = 0 ] && [ "$(src)" = nvdata ] && valid "$DST"; then
+    say "this unit's record is in place (MAC $(mac_of "$DST"))"
+    exit 0
+fi
+
+T=$(mktemp); trap 'rm -f "$T"' EXIT
+if r=$(from_nvdata "$T"); then
+    install_rec "$T" nvdata
+    say "copied this unit's record from $r (MAC $(mac_of "$DST"))"
+    exit 0
+fi
+say "WARNING: could not read this unit's Wi-Fi record from nvdata: $r"
+
+if [ -f "$DST" ] && [ -z "$(src)" ]; then
+    say "WARNING: keeping the existing record of unknown origin (MAC $(mac_of "$DST")) — it may be another unit's"
+    exit 0
+fi
+if [ "$(src)" = generated ] && valid "$DST"; then
+    say "WARNING: still using the generated record (MAC $(mac_of "$DST"), generic TX calibration)"
+    exit 0
+fi
+[ -f "$TEMPLATE" ] || { say "no template $TEMPLATE either; Wi-Fi will not come up"; exit 1; }
+cp "$TEMPLATE" "$T"
+mac=$(unit_mac)
+printf "$(echo "$mac" | sed 's/^/\\x/; s/:/\\x/g')" | dd of="$T" bs=1 seek=4 conv=notrunc status=none
+install_rec "$T" generated
+say "WARNING: generated a record: MAC $(mac_of "$DST") (from this unit's eMMC serial), GENERIC TX calibration — restore nvdata from your backup to get the factory one"
+exit 0

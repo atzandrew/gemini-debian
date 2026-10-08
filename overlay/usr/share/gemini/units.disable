@@ -1,0 +1,4 @@
+# Units disabled by bin/apply-files.sh BEFORE units.enable, when present.
+# Matters for the update bundle on a Gemini that still has them enabled.
+# greetd: replaced by SDDM (2026-10-08); both claim display-manager.service.
+greetd.service

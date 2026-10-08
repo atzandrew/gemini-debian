@@ -10,18 +10,14 @@ bluez
 # later, the desktop's power/network controls
 polkitd
 
-# ---- part 6: X11 base behind greetd/tuigreet (LXQt itself removed
-# 2026-10-04: X11 glitches; Plasma Wayland + labwc are the desktops, see
-# desktop.list) ----
-greetd
-tuigreet
-xserver-xorg-core
-xserver-xorg-legacy
-xserver-xorg-input-libinput
-xinit
-xauth
-x11-xserver-utils
-xinput
+# ---- login screen (beta, 2026-10-08): SDDM with a Wayland greeter run by
+# KWin (etc/sddm.conf.d/10-gemini.conf), replacing greetd/tuigreet. The X11
+# server packages that only existed for tuigreet's X sessions (startx,
+# xrandr, xinput, xbindkeys) went with it; Xwayland comes with kwin-wayland.
+sddm
+sddm-theme-breeze
+kde-config-sddm
+# GL for KWin/Xwayland (replaced by the Gemini Mesa .debs when present)
 libgl1-mesa-dri
 libegl-mesa0
 libglx-mesa0
@@ -31,9 +27,8 @@ breeze-icon-theme
 
 fonts-dejavu-core
 firefox-esr
-# brightness: Fn+B/N via xbindkeys -> brightnessctl
+# brightness from the shell (Plasma uses its own control)
 brightnessctl
-xbindkeys
 # battery: UPower (Plasma's battery applet reads it)
 upower
 
@@ -48,3 +43,31 @@ rtkit
 linux-perf
 strace
 mesa-utils
+# ---- everyday apps (beta, 2026-10-08): what a typical Plasma distro ships.
+# No Recommends here (this list never pulls them), so the size stays known.
+# image viewer (+ HEIF/AVIF/WebP via kimageformat6-plugins, already pulled
+# in by Plasma)
+gwenview
+# archives: Ark + the tools it drives (zip, 7z, rar via unar, xz/bz2/zstd)
+ark
+zip
+unzip
+7zip
+unar
+xz-utils
+bzip2
+zstd
+# text editor (KDE's simple editor; same editing engine as Kate)
+kwrite
+# document viewer (PDF, EPUB, images) and calculator
+okular
+kcalc
+# video/music player (mpv-based)
+haruna
+# shell basics
+vim-tiny
+htop
+wget
+lsof
+# ~/Documents, ~/Downloads, ... on first login
+xdg-user-dirs

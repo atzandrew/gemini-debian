@@ -1,0 +1,46 @@
+#!/bin/bash
+# gemini-wifi-fixup — make saved Wi-Fi profiles work with the Gemini's
+# MT6630 (wlan_gen3) driver. Run by gemini-wifi-fixup.path whenever a profile
+# in /etc/NetworkManager/system-connections changes, and once at boot.
+#
+# WPA2/WPA3 mixed ("transition mode") networks: Plasma sees SAE in the
+# beacon and saves the profile as WPA3 (key-mgmt sae), but wpa_supplicant
+# can't do SAE with this driver, so the connection never comes up. The same
+# network accepts WPA2-PSK, which works. Rewrite sae -> wpa-psk with PMF off
+# (the per-network fix tested on the device, 2026-10-04). A WPA3-ONLY network
+# can't work either way on this driver.
+#
+#   gemini-wifi-fixup          fix all profiles (what the units run)
+#   gemini-wifi-fixup --list   show Wi-Fi profiles: key-mgmt, psk-flags
+set -u
+command -v nmcli >/dev/null || exit 0
+nmcli -t general status >/dev/null 2>&1 || exit 0   # NetworkManager not up yet
+
+wifi_uuids() { nmcli -t -f UUID,TYPE connection show | awk -F: '$2 == "802-11-wireless" {print $1}'; }
+get() { nmcli -g "$2" connection show "$1" 2>/dev/null; }
+
+if [ "${1:-}" = --list ]; then
+    for u in $(wifi_uuids); do
+        printf '%-24s key-mgmt=%-8s psk-flags=%s (0 = connects before login)\n' \
+            "$(get "$u" connection.id)" "$(get "$u" 802-11-wireless-security.key-mgmt)" \
+            "$(get "$u" 802-11-wireless-security.psk-flags)"
+    done
+    exit 0
+fi
+
+for u in $(wifi_uuids); do
+    [ "$(get "$u" 802-11-wireless-security.key-mgmt)" = sae ] || continue
+    id=$(get "$u" connection.id)
+    if nmcli connection modify "$u" 802-11-wireless-security.key-mgmt wpa-psk \
+            802-11-wireless-security.pmf disable; then
+        echo "\"$id\": WPA3 (sae) -> WPA2 (wpa-psk, PMF off) — this Wi-Fi driver can't do WPA3"
+        # It is probably failing right now; retry with the fixed profile
+        # unless Wi-Fi is already connected to something.
+        if [ "$(nmcli -g GENERAL.STATE device show wlan0 2>/dev/null | cut -d' ' -f1)" != 100 ]; then
+            nmcli -w 0 connection up "$u" >/dev/null 2>&1 || :
+        fi
+    else
+        echo "\"$id\": could not rewrite key-mgmt (nmcli failed)" >&2
+    fi
+done
+exit 0

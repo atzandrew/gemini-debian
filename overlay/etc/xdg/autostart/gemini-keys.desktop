@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Gemini Fn keys
-Comment=Fn+B / Fn+N brightness (xbindkeys)
-Exec=xbindkeys -f /etc/gemini/xbindkeysrc
-OnlyShowIn=LXQt;
-NoDisplay=true

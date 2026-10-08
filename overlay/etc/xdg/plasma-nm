@@ -1,0 +1,11 @@
+# Gemini PDA: Wi-Fi networks added from Plasma's network applet are saved as
+# system connections with the password stored by NetworkManager (psk-flags 0)
+# instead of in the user's KWallet, so the Gemini connects at boot, before
+# anyone logs in (needed for ssh, and for time sync before login).
+# plasma-nm only does this when the user may modify system connections:
+# etc/polkit-1/rules.d/50-gemini-networkmanager.rules allows that for the
+# sudo group. Per user: network applet -> Configure -> "Create new
+# connections as system connections" (plasma-nm libs/editor/uiutils.cpp
+# setConnectionDefaultPermissions).
+[General]
+SystemConnectionsByDefault=true

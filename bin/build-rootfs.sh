@@ -74,10 +74,24 @@ GAUGE=$(cd "$NIXOS" && nix build .#packages.aarch64-linux.mt6351-gauge --print-o
 install -D -m 644 "$GAUGE/mt6351-gauge.ko" "$STAGE/modules/$KVER/extra/mt6351-gauge.ko"
 echo "    fuel gauge module: $GAUGE"
 echo "$KVER" > "$STAGE/kver"
+# A release image must come only from committed repo state. Uncommitted
+# changes to tracked files are built in (nix flakes include them), so record
+# them in build-info and warn loudly.
+rev() { # repo dir -> "abc1234" or "abc1234 +uncommitted changes"
+    local r; r=$(git -C "$1" rev-parse --short HEAD 2>/dev/null) || { echo "not a git repo"; return; }
+    if [ -n "$(git -C "$1" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+        echo "$r +uncommitted changes"
+    else echo "$r"; fi
+}
+NIXOS_REV=$(rev "$NIXOS"); DEBIAN_REV=$(rev "$HERE")
+case "$NIXOS_REV $DEBIAN_REV" in *uncommitted*)
+    echo "    !! WARNING: building with uncommitted changes (gemini-nixos $NIXOS_REV, gemini-debian $DEBIAN_REV)"
+    echo "    !! fine for a test image; commit first for a release image" ;;
+esac
 {
     echo "built: $(date -Is) on $(hostname)"
-    echo "gemini-nixos: $(git -C "$NIXOS" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-    echo "gemini-debian: $(git -C "$HERE" rev-parse --short HEAD 2>/dev/null || echo uncommitted)"
+    echo "gemini-nixos: $NIXOS_REV"
+    echo "gemini-debian: $DEBIAN_REV"
     echo "nixos system (modules/firmware source): $SYS"
     echo "kernel: $KVER"
     echo "suite: $DEBIAN_SUITE"
@@ -85,7 +99,8 @@ echo "$KVER" > "$STAGE/kver"
 echo "    modules: $(du -sh "$STAGE/modules" | cut -f1), firmware: $(du -sh "$STAGE/firmware" | cut -f1)"
 
 # ---- the Gemini files tree (goes into the image AND the update bundle) ----
-# overlay/ + device scripts, keymap and Wi-Fi NVRAM copied from gemini-nixos.
+# overlay/ + device scripts, keymap and the Wi-Fi NVRAM template copied from
+# gemini-nixos.
 F=$STAGE/files
 mkdir -p "$F"
 cp -r overlay/. "$F/"
@@ -106,16 +121,20 @@ install -D -m 644 "$NIXOS/config/keymaps/gemini-uk.map" "$F/usr/share/gemini/key
 # The "gemini" xkb layout for X (part 6), verbatim from gemini-nixos.
 install -D -m 644 "$NIXOS/config/xkb/symbols/gemini" "$F/usr/share/X11/xkb/symbols/gemini"
 install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
-# Factory Wi-Fi NVRAM record (MAC + TX calibration) where wlan_gen3 reads it.
-# NOTE: this is the record gemini-nixos ships (from the original author's
-# unit); replace with this unit's own from the nvram backup (plan.md).
-install -D -m 644 "$NIXOS/pkgs/gemini-firmware/WIFI_factory.bin" "$F/data/nvram/APCFG/APRDEB/WIFI"
+# Wi-Fi NVRAM (MAC + TX calibration): NOT shipped as a record. Each Gemini's
+# own is copied from its Android nvdata partition at boot
+# (gemini-wifi-nvram.service). The record gemini-nixos carries (from cjdell's
+# unit) is only a TEMPLATE for the fallback when nvdata is unreadable; that
+# fallback replaces its MAC with one made from the unit's eMMC serial.
+install -D -m 644 "$NIXOS/pkgs/gemini-firmware/WIFI_factory.bin" "$F/usr/share/gemini/wifi/WIFI.template"
 # Kernel modules changed WITHOUT a new kernel/boot image (CONFIG_MODVERSIONS
 # and module signing are off, so a rebuilt module loads into the flashed
 # kernel). Shipped in the files tree so the update bundle refreshes them on a
 # running Gemini; same path as in the module tree, so no depmod is needed.
-#   geminipda-drm.ko: CPU cache sync before the scanout blit (2026-10-02;
-#   fixes stale-pixel "residue" with GPU-accelerated X).
+#   geminipda-drm.ko: the display scanout driver (2026-10-02 cache sync;
+#   2026-10-07 vsync1 = RDMA0 hardware vblank, no tearing). Taken from the
+#   same kernel build as everything else, so a full flash always carries the
+#   matching module; the bundle copy lets a boot-only update catch up.
 MODULE_OVERRIDES="kernel/drivers/gpu/drm/tiny/geminipda-drm.ko"
 for m in $MODULE_OVERRIDES; do
     src="$STAGE/modules/$KVER/$m"

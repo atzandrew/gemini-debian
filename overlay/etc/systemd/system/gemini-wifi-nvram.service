@@ -1,0 +1,15 @@
+# This Gemini's own Wi-Fi NVRAM record (MAC + TX calibration), copied
+# read-only from the Android nvdata partition before Wi-Fi comes up
+# (/usr/local/sbin/gemini-wifi-nvram; `gemini-wifi-nvram status` to check).
+[Unit]
+Description=Gemini Wi-Fi NVRAM (this unit's MAC + calibration from nvdata)
+After=local-fs.target systemd-udevd.service
+Before=gemini-wifi-internal.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gemini-wifi-nvram
+
+[Install]
+WantedBy=multi-user.target

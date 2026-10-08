@@ -20,11 +20,17 @@ must match its kernel version (`EXPECT_KVER`).
 
 ## Road to the first beta image
 
-**Beta readiness: 50 %** (8 of 16 checklist items done, as of 2026-10-06)
+**Beta readiness: 58 %** (11 of 19 checklist items done, as of 2026-10-07)
 
 ```
-██████████░░░░░░░░░░  50 %
+████████████░░░░░░░░  58 %
 ```
+
+Since 2026-10-06 three items were added to the list and done: CPU clock
+scaling, the temperature sensor with throttling, and tear-free display. The
+remaining eight are about turning the working device into an image other
+people can install. The image on our own Gemini is still a hand-updated one;
+the first item below rebuilds it purely from the repos.
 
 The goal of the beta is a downloadable image that someone other than us can
 flash safely and set up for themselves.
@@ -39,19 +45,29 @@ flash safely and set up for themselves.
 - [x] **Charging screen** when a charger is plugged into a switched-off Gemini
 - [x] **Faster charging** (2.5 A input instead of 500 mA)
 - [x] **Correct clock at boot** and a **power menu on a long press of Esc/On**
+- [x] **Automatic CPU clocks** on all ten cores, including the two fast A72
+      cores, which are now online two seconds into boot
+- [x] **Temperature sensor and overheat protection**: throttles at 85 °C,
+      shuts down safely at 105 °C
+- [x] **Tear-free display**, synced to the panel's real refresh
 
 ### Still to do before the beta
 
-- [ ] **Clean build and test**: an image built purely from the repos, flashed
-      from scratch, plus an overnight power-off test on battery
+- [ ] **Clean build and test**: an image built purely from the repos (current
+      kernel modules, display driver and battery-guard included), flashed from
+      scratch, plus an overnight power-off test on battery
+      ([docs/beta-test.md](docs/beta-test.md); `sudo gemini-beta-check` on the
+      device)
 - [ ] **Each unit's own Wi-Fi identity**: read the Wi-Fi calibration (NVRAM)
       record and MAC address from the device instead of shipping one unit's copy
+      (in the image since 2026-10-08: `gemini-wifi-nvram`; on-device test pending)
 - [ ] **First-boot setup**: create your own user and password, pick a desktop,
       keyboard layout and Wi-Fi network (no built-in account)
 - [ ] **Wi-Fi fixes in the image**: WPA2/WPA3 mixed networks, and connecting
-      before login
-- [ ] **Storage speed decision**: soak-test the faster eMMC mode (HS200) or ship
-      the proven slower one
+      before login (in the image since 2026-10-08; on-device test pending)
+- [ ] **Storage speed decision**: the faster eMMC mode (HS200, about 3× faster)
+      has passed every test so far and runs in every current boot image; decide
+      after a few more cold boots whether to ship it or the proven slower one
 - [ ] **Install guide**: mandatory full backup (including NVRAM), partition
       layout check, flashing steps
 - [ ] **Release packaging**: compressed image, boot image and checksums on
@@ -63,13 +79,18 @@ flash safely and set up for themselves.
 ### Desktop
 
 - **KDE Plasma 6 (Wayland)** as the default desktop, with labwc as a lighter
-  alternative. Plasma runs at about 60 frames per second.
+  alternative, behind the **SDDM** login screen (Wayland, rotated and scaled
+  like the desktop). Plasma runs at about 60 frames per second, **without tearing**:
+  frames are synced to the panel's 59 Hz refresh.
 - **GPU acceleration** on the Mali-T880 (panfrost, OpenGL ES 3.1).
 - **Touchscreen and rotation** set up for the landscape keyboard position,
   scaled 2× for the 5.99" 2160×1080 panel.
 - **Keyboard** with the Gemini's US and UK layouts and working brightness keys.
 - **Long press of Esc/On** opens the power menu (shut down, restart, log out).
 - **Screen off turns the backlight fully off.**
+- **Everyday apps**: Firefox, Dolphin, Konsole, Gwenview (images), Ark
+  (archives: zip, 7z, rar, tar), KWrite (text), Okular (PDF), KCalc, Haruna
+  (video/music), Spectacle (screenshots), System Monitor.
 
 ### Battery and power
 
@@ -83,6 +104,11 @@ flash safely and set up for themselves.
   (about 1.5 A into the battery while using Plasma).
 - **Correct time at boot** from the PMIC's real-time clock, before the network
   is up.
+- **CPU frequency scaling** on all three clusters (4× A53 up to 1.1 GHz, 4× A53
+  up to 1.35 GHz, 2× A72 up to 1.5 GHz), so the CPUs slow down when idle and
+  speed up under load.
+- **Temperature monitoring and protection**: the SoC's own sensor drives
+  throttling at 85 °C and a safe shutdown at 105 °C.
 
 ### Charging screen
 
@@ -100,7 +126,13 @@ instead of booting the whole system:
 
 ### Hardware
 
-- **Wi-Fi** (MT6630) with NetworkManager, and **Bluetooth**.
+- **Wi-Fi** (MT6630) with NetworkManager, and **Bluetooth**, including
+  Bluetooth LE mice and keyboards. Each Gemini uses its **own Wi-Fi MAC
+  address and factory radio calibration**, read from its Android `nvdata`
+  partition at boot (never shipped in the image). Networks added in Plasma
+  connect at boot, before login; WPA2/WPA3 mixed networks are joined as WPA2.
+- **Faster storage**: eMMC in HS200 mode (about 150 MB/s read, 100 MB/s write).
+- **FUSE** for sshfs, AppImages and the desktop's file portal.
 - **Sound** through the speaker and the headphone jack (switch with
   `sudo gemini-audio speaker|headphone|toggle`).
 - **USB network link** for development (`10.15.19.82`).
@@ -108,14 +140,16 @@ instead of booting the whole system:
 
 ### Known limitations
 
-- No suspend yet, so the battery drains at about 150–250 mA with the screen off.
-- The CPUs run at the clocks the bootloader leaves (no frequency scaling).
-  The two fast A72 cores come online about 5 minutes after boot.
-- No temperature sensor.
-- Some screen tearing (the display has no vertical sync).
-- Wi-Fi connects only after you log in, and WPA2/WPA3 mixed networks need a
-  manual fix (both are on the beta list).
+- No suspend or deep idle yet, so the battery drains at about 550 mA with the
+  screen off. Most of that is the chip never reaching a low-power state; the
+  power-management firmware that fixes it is found but not ported yet.
+- CPU and GPU clocks are still below stock (A72s 1.5 of about 2.5 GHz, GPU fixed
+  at 500 MHz). Under sustained full load the chip reaches 85 °C within a minute
+  and throttles.
+- WPA3-only Wi-Fi networks don't work (the driver can't do WPA3); mixed
+  WPA2/WPA3 networks are joined as WPA2 automatically.
 - Headphone plug-in detection isn't automatic yet.
+- The screen stays powered when "off" (only the backlight switches off).
 
 ## Changes in the gemini-nixos fork
 
@@ -126,12 +160,27 @@ on top of cjdell's work (kernel source changes live in
 - **Kernel 6.6 → 6.6.157 stable rebase**
   ([567ed73](https://github.com/atzandrew/gemini-nixos/commit/567ed73)); config adds exFAT + NLS_UTF8
   ([d343495](https://github.com/atzandrew/gemini-nixos/commit/d343495)).
-- **Display performance:** the scanout driver
+- **Display:** the scanout driver
   [`geminipda-drm.c`](https://github.com/atzandrew/gemini-nixos/blob/main/devices/planet-geminipda/kernel/delta/drivers/gpu/drm/tiny/geminipda-drm.c)
-  now copies each frame in a single pass and syncs the CPU cache only for the damaged area
+  copies each frame in a single pass and syncs the CPU cache only for the damaged area
   ([e90dd06](https://github.com/atzandrew/gemini-nixos/commit/e90dd06)), with a software vblank at `refresh_hz`, default 60
   ([064cda8](https://github.com/atzandrew/gemini-nixos/commit/064cda8)).
-  Screen off now also switches the backlight off.
+  Since 2026-10-07 it uses the display engine's real frame interrupt as vblank
+  and starts each copy at the start of the panel's blanking period, which
+  removes tearing ("vsync1"; [docs/display.md](https://github.com/atzandrew/gemini-nixos/blob/main/docs/display.md)).
+  Screen off also switches the backlight off.
+- **CPU clocks:** frequency scaling for all three MT6797 clusters with mainline
+  `mediatek-cpufreq` (new clock and SRAM-regulator drivers,
+  [2f20db6](https://github.com/atzandrew/gemini-nixos/commit/2f20db6)); the A72
+  cluster is powered on by the kernel at boot
+  ([c028f86](https://github.com/atzandrew/gemini-nixos/commit/c028f86)) and clocked
+  through the firmware's frequency call
+  ([929fd27](https://github.com/atzandrew/gemini-nixos/commit/929fd27)).
+  Details: [docs/cpu-dvfs.md](https://github.com/atzandrew/gemini-nixos/blob/main/docs/cpu-dvfs.md).
+- **Thermal:** the MT6797 SoC temperature sensor with factory calibration,
+  cooling maps and trip points
+  ([6225e23](https://github.com/atzandrew/gemini-nixos/commit/6225e23);
+  [docs/thermal.md](https://github.com/atzandrew/gemini-nixos/blob/main/docs/thermal.md)).
 - **Audio:** the mt6797 AFE again registers its sub-DAI widgets and routes
   ([f4c9f84](https://github.com/atzandrew/gemini-nixos/commit/f4c9f84)).
 - **Keyboard:** `matrix_keypad` polls at a runtime `poll_ms` (default 20 ms)
@@ -145,7 +194,11 @@ on top of cjdell's work (kernel source changes live in
 - **Charging screen:** the initrd recognises the bootloader's off-mode-charging
   boot and shows a battery screen (`devices/planet-geminipda/charger.sh`,
   `charger-ui/`). The kernel stays quiet until that decision.
-- **eMMC HS200** support for the MT6797 (in testing).
+- **eMMC HS200** at 192 MHz for the MT6797
+  ([196af1d](https://github.com/atzandrew/gemini-nixos/commit/196af1d); final soak pending).
+- **Config:** FUSE ([4645cba](https://github.com/atzandrew/gemini-nixos/commit/4645cba))
+  and UHID/HIDRAW/UINPUT for Bluetooth LE input devices
+  ([01425eb](https://github.com/atzandrew/gemini-nixos/commit/01425eb)).
 - **Groundwork before the rebase** ([6724b54](https://github.com/atzandrew/gemini-nixos/commit/6724b54)): charger driver,
   device tree, initrd and greeter changes.
 
@@ -156,6 +209,11 @@ the mainline kernel bring-up, device tree, drivers, and most of the device
 scripts and hardware research reused here (each copied file names its
 gemini-nixos source). Thank you!
 
+The temperature sensor driver and the display pipeline notes build on
+[ixoo/gemini-pda-mainline](https://github.com/ixoo/gemini-pda-mainline)'s
+careful MT6797 research. Vendor behaviour was checked against Gemian's
+[gemini-linux-kernel-3.18](https://github.com/gemian/gemini-linux-kernel-3.18).
+
 The charging screen uses the [Nunito](https://github.com/googlefonts/nunito)
 font (SIL Open Font License 1.1) and [stb](https://github.com/nothings/stb)
 (public domain).
@@ -165,6 +223,7 @@ font (SIL Open Font License 1.1) and [stb](https://github.com/nothings/stb)
 - **Plan and status:** [docs/plan.md](docs/plan.md)
 - **Build + flash + first boot:** [docs/flashing.md](docs/flashing.md)
 - **Update a running Gemini (no reflash):** [docs/updating.md](docs/updating.md)
+- **Clean-flash beta test:** [docs/beta-test.md](docs/beta-test.md)
 
 ## Layout
 
@@ -176,6 +235,7 @@ font (SIL Open Font License 1.1) and [stb](https://github.com/nothings/stb)
 | `bin/build-rootfs.sh` | entry point (run on Hydra as your user) |
 | `bin/in-container.sh` | mmdebstrap + ext4 packing, inside a debian:trixie podman container |
 | `bin/customize.sh` | modules/firmware, user, locale, services, boot-handoff checks |
+| `docs/beta-test.md` | clean-flash test: drift checks, Wi-Fi, eMMC cold boots, overnight power-off |
 | `screenshots/` | images used in this README |
 | `build/`, `out/` | scratch and output (git-ignored) |
 

@@ -1,4 +1,0 @@
-#!/bin/sh
-# tuigreet --xsession-wrapper: start X on this VT and run the chosen X session
-# ("$@", e.g. startlxqt) through gemini-xinit. Log: ~/.xsession-errors
-exec startx /usr/local/sbin/gemini-xinit "$@" -- -keeptty > "$HOME/.xsession-errors" 2>&1
