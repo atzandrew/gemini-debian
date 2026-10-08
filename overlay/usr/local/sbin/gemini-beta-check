@@ -65,7 +65,9 @@ for t in gwenview ark kwrite okular kcalc haruna firefox-esr; do check "app: $t"
 # and plasmashell's swaps failed (blinking, frozen panel); later sessions and
 # a fresh user were clean. Count them every boot to see if it comes back.
 g=$(journalctl -b -o cat --no-pager 2>/dev/null | grep -c 'kwin_scene_opengl: .*GL_INVALID')
-s=$(journalctl -b -o cat --no-pager 2>/dev/null | grep -c 'eglSwapBuffers failed')
+# (the login screen's own last frame fails once at every login, when its
+# compositor goes away: sddm-greeter-qt6 ... 0x300d — harmless, not counted)
+s=$(journalctl -b --no-pager 2>/dev/null | grep 'eglSwapBuffers failed' | grep -vc 'sddm-greeter')
 [ "$g" -eq 0 ] && [ "$s" -eq 0 ] && pass "no KWin GL errors / failed swaps this boot" \
     || fail "KWin GL errors: $g, failed eglSwapBuffers: $s this boot (journalctl -b | grep -E 'kwin_scene_opengl|eglSwapBuffers')"
 command -v coredumpctl >/dev/null && info "crash dumps this boot: $(coredumpctl list --since today --no-legend --no-pager 2>/dev/null | wc -l)"
