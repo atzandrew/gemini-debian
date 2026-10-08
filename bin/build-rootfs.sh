@@ -121,6 +121,18 @@ install -D -m 644 "$NIXOS/config/keymaps/gemini-uk.map" "$F/usr/share/gemini/key
 # The "gemini" xkb layout for X (part 6), verbatim from gemini-nixos.
 install -D -m 644 "$NIXOS/config/xkb/symbols/gemini" "$F/usr/share/X11/xkb/symbols/gemini"
 install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
+# Gemini wallpapers: Wallpapers/gemini_NN.png (2160x1080, the panel's
+# landscape size) as Plasma wallpaper packages /usr/share/wallpapers/GeminiNN,
+# listed in System Settings -> Wallpaper. gemini_01 is the default (overlay
+# .../plasma/shells/org.kde.plasma.desktop/contents/updates/gemini-wallpaper.js).
+for w in Wallpapers/gemini_*.png; do
+    [ -f "$w" ] || continue
+    n=$(basename "$w" .png); n=${n#gemini_}
+    install -D -m 644 "$w" "$F/usr/share/wallpapers/Gemini$n/contents/images/2160x1080.png"
+    printf '{\n    "KPlugin": {\n        "Id": "Gemini%s",\n        "Name": "Gemini %s"\n    }\n}\n' "$n" "$n" \
+        > "$F/usr/share/wallpapers/Gemini$n/metadata.json"
+done
+[ -f "$F/usr/share/wallpapers/Gemini01/contents/images/2160x1080.png" ] || die "Wallpapers/gemini_01.png missing (default wallpaper)"
 # Wi-Fi NVRAM (MAC + TX calibration): NOT shipped as a record. Each Gemini's
 # own is copied from its Android nvdata partition at boot
 # (gemini-wifi-nvram.service). The record gemini-nixos carries (from cjdell's
