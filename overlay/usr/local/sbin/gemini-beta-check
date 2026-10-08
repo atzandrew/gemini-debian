@@ -60,6 +60,15 @@ active sddm && pass "SDDM running" || fail "SDDM running"
 ! systemctl is-enabled --quiet greetd 2>/dev/null && pass "greetd not enabled" || fail "greetd not enabled"
 for t in gwenview ark kwrite okular kcalc haruna firefox-esr; do check "app: $t" command -v $t; done
 ! dpkg -s partitionmanager >/dev/null 2>&1 && pass "no partitionmanager" || fail "no partitionmanager"
+# First beta boot (2026-10-08): KWin's first user session logged ~100 GL API
+# errors (glTexSubImage2D invalid level, GL_BACK_LEFT, GL_ALPHA, POINT_SPRITE)
+# and plasmashell's swaps failed (blinking, frozen panel); later sessions and
+# a fresh user were clean. Count them every boot to see if it comes back.
+g=$(journalctl -b -o cat --no-pager 2>/dev/null | grep -c 'kwin_scene_opengl: .*GL_INVALID')
+s=$(journalctl -b -o cat --no-pager 2>/dev/null | grep -c 'eglSwapBuffers failed')
+[ "$g" -eq 0 ] && [ "$s" -eq 0 ] && pass "no KWin GL errors / failed swaps this boot" \
+    || fail "KWin GL errors: $g, failed eglSwapBuffers: $s this boot (journalctl -b | grep -E 'kwin_scene_opengl|eglSwapBuffers')"
+command -v coredumpctl >/dev/null && info "crash dumps this boot: $(coredumpctl list --since today --no-legend --no-pager 2>/dev/null | wc -l)"
 
 echo "== Wi-Fi"
 if [ -x /usr/local/sbin/gemini-wifi-nvram ]; then

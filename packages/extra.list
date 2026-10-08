@@ -71,3 +71,6 @@ wget
 lsof
 # ~/Documents, ~/Downloads, ... on first login
 xdg-user-dirs
+# crash dumps: coredumpctl + backtraces for KDE's crash reporter (a
+# plasmashell crash on the first beta login left nothing to debug, 2026-10-08)
+systemd-coredump
