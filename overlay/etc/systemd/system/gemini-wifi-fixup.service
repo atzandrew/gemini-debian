@@ -1,0 +1,14 @@
+# Rewrite WPA3 (sae) Wi-Fi profiles to WPA2, which this driver can do
+# (/usr/local/sbin/gemini-wifi-fixup). Started by gemini-wifi-fixup.path on
+# every profile change, and once per boot.
+[Unit]
+Description=Gemini Wi-Fi profile fix-up (WPA2/WPA3 mixed networks)
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gemini-wifi-fixup
+
+[Install]
+WantedBy=multi-user.target

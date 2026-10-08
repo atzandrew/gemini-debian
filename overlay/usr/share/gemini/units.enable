@@ -3,9 +3,12 @@ gemini-keymap.service
 gemini-growfs.service
 gemini-gpu-poweron.service
 gemini-panfrost-load.service
+gemini-wifi-nvram.service
 gemini-wifi-internal.service
+gemini-wifi-fixup.service
+gemini-wifi-fixup.path
 gemini-bt-hci.service
 gemini-battery-guard.service
 gemini-backlight-default.service
-greetd.service
+sddm.service
 gemini-audio.service

@@ -29,6 +29,13 @@ if [ -n "$EXTRA" ]; then
     fi
     cp /etc/resolv.conf "$R/etc/resolv.conf"
     printf '#!/bin/sh\nexit 101\n' > "$R/usr/sbin/policy-rc.d"; chmod 755 "$R/usr/sbin/policy-rc.d"
+    # apt pins from the overlay must be in place BEFORE the installs (e.g.
+    # no partitionmanager, which Plasma recommends); apply-files installs
+    # the same files again later.
+    if [ -d /work/overlay/etc/apt/preferences.d ]; then
+        install -d "$R/etc/apt/preferences.d"
+        install -m 644 /work/overlay/etc/apt/preferences.d/* "$R/etc/apt/preferences.d/"
+    fi
     export DEBIAN_FRONTEND=noninteractive
     in_chroot apt-get clean
     in_chroot apt-get update -qq
@@ -125,17 +132,26 @@ fix_rel /etc/os-release ../usr/lib/os-release
 [ -f "$R/usr/lib/modules/$KVER/extra/mt6351-gauge.ko" ] || { echo "!! mt6351-gauge.ko missing (fuel gauge)"; exit 1; }
 in_chroot modinfo -k "$KVER" -n mt6351_gauge >/dev/null 2>&1 || { echo "!! mt6351_gauge not in modules.dep"; exit 1; }
 # Core directories must be world-readable/traversable or nothing but root works.
-for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr/share /var /home /data; do
+for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr/share /var /home; do
     m=$(stat -c %a "$R$d")
     [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
 done
 m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
-for t in busybox i2cset iw tuigreet startx Xorg xrandr xinput xrdb firefox-esr \
-         startplasma-wayland kwin_wayland labwc foot wlr-randr perf wpctl; do
-    in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (needed by device scripts)"; exit 1; }
+for t in busybox i2cset iw debugfs nmcli sddm firefox-esr \
+         startplasma-wayland kwin_wayland Xwayland labwc foot wlr-randr perf wpctl \
+         gwenview ark kwrite okular unzip; do
+    in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (device scripts / beta app set)"; exit 1; }
 done
+in_chroot systemctl is-enabled sddm.service >/dev/null 2>&1 || { echo "!! sddm.service not enabled"; exit 1; }
+dm=$(readlink "$R/etc/systemd/system/display-manager.service" || :)
+[ "${dm##*/}" = sddm.service ] || { echo "!! display-manager.service is not SDDM: '$dm'"; exit 1; }
+! in_chroot dpkg -s partitionmanager >/dev/null 2>&1 || { echo "!! partitionmanager got installed"; exit 1; }
 [ -f "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume/metadata.json" ] || [ -d "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume" ] || { echo "!! plasma-pa (volume applet) missing"; exit 1; }
 [ -f "$R/usr/share/X11/xkb/symbols/gemini" ] || { echo "!! gemini xkb symbols missing"; exit 1; }
-[ -f "$R/data/nvram/APCFG/APRDEB/WIFI" ] || { echo "!! Wi-Fi NVRAM missing"; exit 1; }
+# Wi-Fi NVRAM: each unit's own record is copied from its nvdata at boot;
+# the image carries only the fallback template, never a record.
+[ ! -e "$R/data/nvram/APCFG/APRDEB/WIFI" ] || { echo "!! the image must not ship a Wi-Fi NVRAM record (one unit's MAC + calibration)"; exit 1; }
+[ -f "$R/usr/share/gemini/wifi/WIFI.template" ] || { echo "!! Wi-Fi NVRAM template missing"; exit 1; }
+[ -x "$R/usr/local/sbin/gemini-wifi-nvram" ] || { echo "!! gemini-wifi-nvram missing"; exit 1; }
 [ -f "$R/usr/lib/firmware/WIFI_RAM_CODE_6797" ] || { echo "!! WIFI_RAM_CODE_6797 missing"; exit 1; }
 echo "    customize: ok"

@@ -1,0 +1,7 @@
+# Gemini PDA: never install KDE Partition Manager (Plasma recommends it).
+# The eMMC holds the bootloader, the boot images, the radio calibration and
+# the IMEI partitions right next to Debian's; a one-click partition editor is
+# too easy a way to destroy them. Remove this file if you really want it.
+Package: partitionmanager
+Pin: release a=*
+Pin-Priority: -1

@@ -1,0 +1,12 @@
+# Watch NetworkManager's saved profiles; Plasma writes a new one when you
+# join a network. The fix-up's own `nmcli connection modify` triggers one
+# more (no-op) run.
+[Unit]
+Description=Watch Wi-Fi profiles for the Gemini fix-up
+
+[Path]
+PathChanged=/etc/NetworkManager/system-connections
+Unit=gemini-wifi-fixup.service
+
+[Install]
+WantedBy=multi-user.target

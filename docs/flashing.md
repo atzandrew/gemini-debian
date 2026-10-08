@@ -67,8 +67,8 @@ can also keep it dark; charge from a wall brick for 15-30 min, then retry.
   is falling back to the Debian rootfs, then normal Debian boot messages.
 - `gemini-growfs` grows the filesystem to the whole ~55 GiB partition on
   the first boot (a few seconds).
-- Log in on the built-in keyboard at the tty1 prompt, or over USB from
-  Dragon:
+- SDDM's login screen comes up (rotated, 2x). Log in there, or over USB
+  from Dragon:
 
   ```sh
   ssh atzero@10.15.19.82
@@ -97,6 +97,7 @@ The marker lives outside userdata, so it survives reflashing userdata.
 ## Quick checks once logged in
 
 ```sh
+sudo gemini-beta-check         # PASS/FAIL for every hand-fixed feature (docs/beta-test.md)
 cat /etc/gemini/build-info
 uname -r                       # 6.6.157
 lsmod | head -20               # sramldo_smc, mt6351_keys, ...

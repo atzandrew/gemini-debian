@@ -1,0 +1,6 @@
+# Gemini PDA: no Plasma splash screen. On this device the splash burned ~7 s
+# of CPU and stayed up ~10 s after the desktop was ready (plasma-trace,
+# 2026-10-07). Users can turn it back on in System Settings -> Splash Screen.
+[KSplash]
+Engine=none
+Theme=None

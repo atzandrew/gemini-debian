@@ -1,0 +1,102 @@
+#!/bin/bash
+# gemini-beta-check — does this Gemini behave like the tested one?
+# Checks every feature that was once fixed by hand on the development unit
+# (and is now meant to come from the image), plus the per-unit Wi-Fi record,
+# the eMMC bus and the last power-off. Read-only. Run after every flash:
+#
+#   sudo gemini-beta-check
+#
+# PASS/FAIL lines are checks; INFO lines are numbers to note.
+# Exit code = number of FAILs.
+set -u
+[ "$(id -u)" -eq 0 ] || { echo "run with sudo" >&2; exit 1; }
+F=0
+pass() { printf 'PASS  %s\n' "$*"; }
+fail() { printf 'FAIL  %s\n' "$*"; F=$((F + 1)); }
+info() { printf 'INFO  %s\n' "$*"; }
+check() { local what=$1; shift; if "$@" >/dev/null 2>&1; then pass "$what"; else fail "$what"; fi; }
+active() { systemctl is-active --quiet "$1"; }
+
+echo "== image"
+B=/etc/gemini/build-info
+if [ -f "$B" ]; then
+    info "$(grep -E '^(built|gemini-nixos|gemini-debian):' "$B" | tr '\n' ' ')"
+    if grep -q uncommitted "$B"; then fail "image built from committed repos only"; else pass "image built from committed repos only"; fi
+else fail "build-info present"; fi
+check "kernel $(uname -r) matches the image's modules" test -d "/usr/lib/modules/$(uname -r)/kernel"
+
+echo "== display (vsync1)"
+P=/sys/module/geminipda_drm/parameters
+check "geminipda-drm loaded" test -d $P
+check "geminipda-drm is the vsync1 build (chase/hw_vblank)" test -e $P/chase -a -e $P/hw_vblank
+[ "$(cat $P/hw_vblank 2>/dev/null)" = Y ] && pass "hardware vblank in use" || fail "hardware vblank in use (hw_vblank=$(cat $P/hw_vblank 2>/dev/null))"
+
+echo "== CPU, thermal, workqueues"
+for p in 0 4 8; do check "cpufreq policy$p" test -d /sys/devices/system/cpu/cpufreq/policy$p; done
+z=$(grep -lx soc-thermal /sys/class/thermal/thermal_zone*/type 2>/dev/null | head -1)
+if [ -n "$z" ]; then pass "soc-thermal zone ($(( $(cat "${z%/type}/temp") / 1000 )) °C)"; else fail "soc-thermal zone"; fi
+wq=$(cat /sys/devices/virtual/workqueue/cpumask 2>/dev/null)
+[ "$wq" = 300 ] && pass "unbound workqueues on the A72s (cpumask 300)" || fail "unbound workqueues on the A72s (cpumask '$wq', want 300)"
+check "/dev/uhid (Bluetooth LE input)" test -c /dev/uhid
+check "/dev/fuse" test -c /dev/fuse
+
+echo "== battery and charging"
+check "fuel gauge (mt6351_gauge)" test -d /sys/class/power_supply/mt6351-battery
+G=/usr/local/sbin/battery-guard.sh
+grep -q 'G_R_MOHM' $G 2>/dev/null && pass "battery-guard is the IR-compensated version" || fail "battery-guard is the IR-compensated version"
+active gemini-battery-guard && pass "battery-guard running" || fail "battery-guard running"
+grep -q 'input_current_limit}="2500000"' /etc/udev/rules.d/99-gemini-charger.rules 2>/dev/null \
+    && pass "charger rule: 2.5 A input" || fail "charger rule: 2.5 A input"
+C=$(ls -d /sys/class/power_supply/bq25890-charger-* 2>/dev/null | head -1)
+if [ -n "$C" ] && [ "$(cat "$C/online")" = 1 ]; then
+    l=$(cat "$C/input_current_limit")
+    [ "$l" = 2500000 ] && pass "charger online, input limit 2.5 A" || fail "charger online, input limit $l (want 2500000)"
+else info "charger not plugged in (input limit not checked)"; fi
+l=$(dmesg | grep -o 'mt6351_gauge: registered.*' | tail -1)
+[ -n "$l" ] && info "gauge at boot: ${l#*: }; uptime now $(cut -d. -f1 /proc/uptime) s"
+
+echo "== login screen and apps"
+active sddm && pass "SDDM running" || fail "SDDM running"
+! systemctl is-enabled --quiet greetd 2>/dev/null && pass "greetd not enabled" || fail "greetd not enabled"
+for t in gwenview ark kwrite okular kcalc haruna firefox-esr; do check "app: $t" command -v $t; done
+! dpkg -s partitionmanager >/dev/null 2>&1 && pass "no partitionmanager" || fail "no partitionmanager"
+
+echo "== Wi-Fi"
+if [ -x /usr/local/sbin/gemini-wifi-nvram ]; then
+    src=$(cut -d' ' -f1 /data/nvram/APCFG/APRDEB/WIFI.source 2>/dev/null)
+    rec=$(od -An -tx1 -j4 -N6 /data/nvram/APCFG/APRDEB/WIFI 2>/dev/null | xargs | tr ' ' ':')
+    mac=$(cat /sys/class/net/wlan0/address 2>/dev/null)
+    [ "$src" = nvdata ] && pass "Wi-Fi record copied from this unit's nvdata" || fail "Wi-Fi record copied from this unit's nvdata (source '${src:-unknown}')"
+    [ -n "$mac" ] && [ "$mac" = "$rec" ] && pass "wlan0 MAC $mac = the record's" || fail "wlan0 MAC '${mac:-none}' vs record '$rec'"
+    [ "$mac" != 00:09:34:5a:af:c1 ] && pass "not the gemini-nixos author's MAC" || fail "wlan0 has the gemini-nixos author's MAC (00:09:34:5a:af:c1)"
+else fail "gemini-wifi-nvram installed"; fi
+active gemini-wifi-fixup.path && pass "WPA3->WPA2 profile fix-up watching" || fail "WPA3->WPA2 profile fix-up watching"
+check "Plasma saves Wi-Fi as system connections" grep -qx 'SystemConnectionsByDefault=true' /etc/xdg/plasma-nm
+if command -v nmcli >/dev/null; then
+    /usr/local/sbin/gemini-wifi-fixup --list | sed 's/^/INFO  profile /'
+    w=$(nmcli -t -f DEVICE,STATE device | awk -F: '$1=="wlan0"{print $2}')
+    # Wi-Fi before login: when did wlan0 connect, and when did the first
+    # user (not the greeter) log in? (seconds since boot)
+    mono() { journalctl -b -o short-monotonic --no-pager "$@" 2>/dev/null | sed -n 's/^\[ *\([0-9]*\)\..*/\1/p' | head -1; }
+    up=$(mono -u NetworkManager --grep 'device \(wlan0\): state change: .* -> activated')
+    li=$(mono -u systemd-logind --grep 'New session \S+ of user (?!sddm\b)')
+    info "wlan0: ${w:-absent}; connected at ${up:--} s, first login at ${li:--} s"
+    if [ -n "$up" ] && { [ -z "$li" ] || [ "$up" -lt "$li" ]; }; then pass "Wi-Fi connected before login"
+    elif [ -n "$up" ]; then fail "Wi-Fi connected before login (only after the login at $li s)"
+    else info "Wi-Fi did not connect this boot (no saved network in range?)"; fi
+fi
+
+echo "== eMMC"
+I=/sys/kernel/debug/mmc0/ios
+if [ -r $I ]; then
+    t=$(sed -n 's/^timing spec:.*(\(.*\))/\1/p' $I); c=$(sed -n 's/^clock:[[:space:]]*\([0-9]*\).*/\1/p' $I)
+    info "bus: $t at $((c / 1000000)) MHz"
+fi
+n=$(dmesg | grep -c 'mt6797 bus error'); r=$(dmesg | grep -c 'mt6797 tuned')
+e=$(dmesg | grep -iE 'mmcblk0.*(error|timed out)|I/O error|EXT4-fs (error|warning)|Buffer I/O' | grep -vc 'mt6797')
+[ "$n" -eq 0 ] && pass "no eMMC bus errors outside tuning" || fail "$n eMMC bus errors outside tuning"
+[ "$e" -eq 0 ] && pass "no block/ext4 errors" || fail "$e block/ext4 error lines (dmesg)"
+info "tunings this boot: $r (1 at init + 1 post-init retune is normal)"
+
+echo "== $F failure(s)"
+exit $F
