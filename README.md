@@ -78,9 +78,8 @@ flash safely and set up for themselves.
 
 ### Desktop
 
-- **KDE Plasma 6 (Wayland)** as the default desktop, with labwc as a lighter
-  alternative, behind the **SDDM** login screen (Wayland, rotated and scaled
-  like the desktop). Plasma runs at about 60 frames per second, **without tearing**:
+- **KDE Plasma 6 (Wayland)** as the desktop, behind the **SDDM** login screen
+  (Wayland, rotated and scaled like the desktop). Plasma runs at about 60 frames per second, **without tearing**:
   frames are synced to the panel's 59 Hz refresh.
 - **GPU acceleration** on the Mali-T880 (panfrost, OpenGL ES 3.1).
 - **Touchscreen and rotation** set up for the landscape keyboard position,
