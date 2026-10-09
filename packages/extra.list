@@ -74,3 +74,9 @@ xdg-user-dirs
 # crash dumps: coredumpctl + backtraces for KDE's crash reporter (a
 # plasmashell crash on the first beta login left nothing to debug, 2026-10-08)
 systemd-coredump
+# ---- first-boot setup (2026-10-09): Calamares in OEM mode (etc/calamares/:
+# welcome, locale, keyboard, users, then removeuser deletes the build-time
+# account). Config tested on the device by hand.
+calamares
+calamares-settings-debian
+pkexec
