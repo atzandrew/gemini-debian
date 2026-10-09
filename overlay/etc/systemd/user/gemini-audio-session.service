@@ -1,0 +1,21 @@
+# Per-user (systemd --user, enabled globally): open the audio output once and
+# only then switch the speaker amps on; switch them off at logout before
+# PipeWire releases the output. See /usr/local/sbin/gemini-audio.
+# The 1 s of silence starts the ALSA sink; WirePlumber's
+# 51-gemini-no-suspend.conf keeps it running afterwards, so the headphone
+# drivers stay powered and the lines stay quiet.
+[Unit]
+Description=Gemini speaker amps for this session
+After=wireplumber.service pipewire.service
+Wants=wireplumber.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sleep 2
+ExecStartPre=-/usr/bin/aplay -q -D pipewire -f S16_LE -r 48000 -c 2 -d 1 /dev/zero
+ExecStart=/usr/bin/sudo -n /usr/local/sbin/gemini-audio session-start
+ExecStop=/usr/bin/sudo -n /usr/local/sbin/gemini-audio session-stop
+
+[Install]
+WantedBy=default.target

@@ -68,8 +68,11 @@ g=$(journalctl -b -o cat --no-pager 2>/dev/null | grep -c 'kwin_scene_opengl: .*
 # (the login screen's own last frame fails once at every login, when its
 # compositor goes away: sddm-greeter-qt6 ... 0x300d — harmless, not counted)
 s=$(journalctl -b --no-pager 2>/dev/null | grep 'eglSwapBuffers failed' | grep -vc 'sddm-greeter')
-[ "$g" -eq 0 ] && [ "$s" -eq 0 ] && pass "no KWin GL errors / failed swaps this boot" \
-    || fail "KWin GL errors: $g, failed eglSwapBuffers: $s this boot (journalctl -b | grep -E 'kwin_scene_opengl|eglSwapBuffers')"
+[ "$g" -eq 0 ] && pass "no KWin GL errors this boot" \
+    || fail "KWin GL errors: $g this boot (journalctl -b | grep kwin_scene_opengl)"
+# Failed swaps alone are normal: Qt's last frame to a window that just closed
+# (popups, notifications; 0x300d, surface 0x0). Only a count, for comparison.
+info "failed eglSwapBuffers outside the login screen: $s (normal: a few; the 2026-10-08 glitch had 9 + KWin GL errors)"
 command -v coredumpctl >/dev/null && info "crash dumps this boot: $(coredumpctl list --since today --no-legend --no-pager 2>/dev/null | wc -l)"
 
 echo "== Wi-Fi"

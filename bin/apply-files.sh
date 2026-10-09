@@ -76,4 +76,9 @@ for u in $(list units.disable); do sc disable "$u" >/dev/null 2>&1 || :; done
 sc enable $(list units.enable)
 # shellcheck disable=SC2046
 sc mask $(list units.mask)
+# Per-user units for every user (e.g. gemini-audio-session: speaker amps on
+# only once the session's PipeWire holds the output).
+u=$(list units.user.enable)
+# shellcheck disable=SC2086
+[ -z "$u" ] || sc --global enable $u
 echo "apply-files: units enabled/disabled/masked"

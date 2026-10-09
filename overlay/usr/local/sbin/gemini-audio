@@ -5,7 +5,15 @@
 #   gemini-audio speaker           speaker amps ON  (speakers + jack)
 #   gemini-audio headphone         speaker amps OFF (jack only)
 #   gemini-audio toggle | status
-#   gemini-audio boot              route + last saved output (gemini-audio.service)
+#   gemini-audio boot              route only, amps OFF (gemini-audio.service)
+#   gemini-audio session-start     amps per the saved output (user unit, once
+#                                  the session's PipeWire holds the output)
+#   gemini-audio session-stop      amps OFF, saved output kept (user unit, logout)
+#
+# Amps only while a session's PipeWire holds the output (2026-10-09): with no
+# stream open the MT6351 powers its headphone drivers down, the lines float
+# and pick up board noise; with the amps on, the speakers blared it from
+# boot through the whole SDDM login screen until the first sound played.
 #
 # Hardware (gemini-nixos services/scripts/{audio-defaults.sh,speaker}, re-verified
 # on Debian 2026-10-03):
@@ -46,7 +54,13 @@ case "${1:-}" in
         # The card can appear a moment after this unit starts; retry briefly.
         for _ in $(seq 20); do route 2>/dev/null && break; sleep 0.5; done
         route || { echo "gemini-audio: route controls missing (old boot image?)" >&2; exit 1; }
+        amps 0
+        echo "gemini-audio: route set, amps off until a session starts (output $(current))" ;;
+    session-start)
         if [ "$(current)" = headphone ]; then amps 0; else amps 1; fi
-        echo "gemini-audio: route set, output $(current)" ;;
-    *) echo "usage: gemini-audio route|speaker|headphone|toggle|status|boot" >&2; exit 2 ;;
+        echo "gemini-audio: session audio up, output $(current)" ;;
+    session-stop)
+        amps 0
+        echo "gemini-audio: session ended, amps off" ;;
+    *) echo "usage: gemini-audio route|speaker|headphone|toggle|status|boot|session-start|session-stop" >&2; exit 2 ;;
 esac
