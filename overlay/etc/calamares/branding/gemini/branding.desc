@@ -1,0 +1,40 @@
+---
+componentName:   gemini
+welcomeStyleCalamares: true
+welcomeExpandingLogo: true
+# fullscreen: the Gemini screen is 1080x540 at 2x, smaller than 800x580
+windowExpanding: fullscreen
+windowSize: 800px,580px
+windowPlacement: center
+
+strings:
+    productName:         Debian for Gemini PDA
+    shortProductName:    Gemini Debian
+    version:             13 beta
+    shortVersion:        beta
+    versionedName:       Debian 13 for Gemini PDA (beta)
+    shortVersionedName:  Gemini Debian beta
+    bootloaderEntryName: Gemini Debian
+    productUrl:          https://github.com/atzandrew/gemini-debian
+    supportUrl:          https://github.com/atzandrew/gemini-debian/issues
+    knownIssuesUrl:      https://github.com/atzandrew/gemini-debian#known-limitations
+    releaseNotesUrl:     https://github.com/atzandrew/gemini-debian/releases
+    donateUrl:           https://www.debian.org
+
+sidebar: widget
+navigation: widget
+
+images:
+    productLogo:         "debian-logo.png"
+    productIcon:         "debian-logo.png"
+    productWelcome:      "welcome.png"
+
+slideshow:               "show.qml"
+
+style:
+   SidebarBackground:    "#26475b"
+   SidebarText:          "#FFFFFF"
+   SidebarTextCurrent:   "#fbfbfb"
+   SidebarBackgroundCurrent: "#265370"
+
+slideshowAPI: 2
