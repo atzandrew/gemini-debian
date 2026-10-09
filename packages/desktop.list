@@ -22,10 +22,8 @@ dolphin
 polkit-kde-agent-1
 xdg-desktop-portal-kde
 qt6-wayland
-# labwc (lightest Wayland session: damage-clipped copies, locked 60 Hz)
-labwc
-foot
-wlr-randr
+# (labwc + foot + wlr-randr removed 2026-10-09: graphical glitches in the
+# labwc session; the beta supports Plasma only.)
 # browsers tried on the device (firefox-esr is in extra.list)
 falkon
 epiphany-browser

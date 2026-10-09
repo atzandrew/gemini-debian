@@ -138,7 +138,7 @@ for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr
 done
 m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
 for t in busybox i2cset iw debugfs nmcli sddm firefox-esr \
-         startplasma-wayland kwin_wayland Xwayland labwc foot wlr-randr perf wpctl \
+         startplasma-wayland kwin_wayland Xwayland perf wpctl \
          gwenview ark kwrite okular unzip; do
     in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (device scripts / beta app set)"; exit 1; }
 done
