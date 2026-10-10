@@ -1,0 +1,47 @@
+#!/bin/sh
+# gemini-first-setup — first-boot account setup with Calamares (OEM mode).
+#
+#   gemini-first-setup start    (autostart, as the logged-in user) launch
+#                               Calamares as root — only while setup is due
+#   gemini-first-setup finish   (Calamares' last exec step, as root) end the
+#                               automatic login, mark setup as done, and
+#                               queue the removal of Calamares
+#   gemini-first-setup cleanup  (gemini-first-setup-cleanup.service, next
+#                               boot) uninstall Calamares + the setup-only
+#                               sudo rule (it can't remove itself while running)
+#   gemini-first-setup status
+#
+# "Setup due" = a fresh image: the SDDM autologin file exists (only
+# bin/customize.sh installs it, never the update bundle), the done-marker
+# doesn't, and the user is the build-time account Calamares replaces.
+AUTOLOGIN=/etc/sddm.conf.d/20-gemini-setup.conf
+DONE=/var/lib/gemini/setup-done
+CLEANUP=/var/lib/gemini/remove-calamares
+SETUP_USER="@GEMINI_USER@"
+
+due() { [ -e "$AUTOLOGIN" ] && [ ! -e "$DONE" ]; }
+
+case "${1:-}" in
+start)
+    due || exit 0
+    [ "$(id -un)" = "$SETUP_USER" ] || exit 0
+    exec sudo -n -E /usr/bin/calamares ;;
+finish)
+    rm -f "$AUTOLOGIN"
+    mkdir -p "${DONE%/*}" && date -Is > "$DONE"
+    touch "$CLEANUP"
+    echo "gemini-first-setup: done; automatic login removed, Calamares goes at the next boot" ;;
+cleanup)
+    [ -e "$CLEANUP" ] || exit 0
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get purge -y -q calamares calamares-settings-debian &&
+        apt-get autoremove --purge -y -q
+    rm -f /etc/sudoers.d/gemini-first-setup /etc/xdg/autostart/gemini-first-setup.desktop
+    rm -f "$CLEANUP"
+    echo "gemini-first-setup: Calamares removed" ;;
+status)
+    if due; then echo "setup due (user $SETUP_USER logs in automatically)"
+    else echo "setup done ($(cat "$DONE" 2>/dev/null || echo 'no autologin'))"; fi ;;
+*)
+    echo "usage: gemini-first-setup start|finish|cleanup|status" >&2; exit 2 ;;
+esac
