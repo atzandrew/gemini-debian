@@ -151,6 +151,7 @@ in_chroot systemctl is-enabled sddm.service >/dev/null 2>&1 || { echo "!! sddm.s
 dm=$(readlink "$R/etc/systemd/system/display-manager.service" || :)
 [ "${dm##*/}" = sddm.service ] || { echo "!! display-manager.service is not SDDM: '$dm'"; exit 1; }
 ! in_chroot dpkg -s partitionmanager >/dev/null 2>&1 || { echo "!! partitionmanager got installed"; exit 1; }
+! in_chroot dpkg -s plasma-welcome >/dev/null 2>&1 || { echo "!! plasma-welcome got installed"; exit 1; }
 [ -f "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume/metadata.json" ] || [ -d "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume" ] || { echo "!! plasma-pa (volume applet) missing"; exit 1; }
 [ -f "$R/usr/share/X11/xkb/symbols/gemini" ] || { echo "!! gemini xkb symbols missing"; exit 1; }
 # Wi-Fi NVRAM: each unit's own record is copied from its nvdata at boot;

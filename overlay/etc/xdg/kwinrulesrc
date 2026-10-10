@@ -1,0 +1,12 @@
+# Gemini PDA: KWin window rules for every user.
+# Calamares (first-boot setup) always fullscreen, whatever size it asks for.
+[General]
+count=1
+rules=gemini-calamares
+
+[gemini-calamares]
+Description=Calamares fullscreen (Gemini first-boot setup)
+wmclass=calamares
+wmclassmatch=2
+fullscreen=true
+fullscreenrule=2

@@ -1,7 +1,14 @@
-# Gemini PDA: never install KDE Partition Manager (Plasma recommends it).
-# The eMMC holds the bootloader, the boot images, the radio calibration and
-# the IMEI partitions right next to Debian's; a one-click partition editor is
-# too easy a way to destroy them. Remove this file if you really want it.
+# Gemini PDA: packages Plasma recommends that the image must not get.
+#
+# KDE Partition Manager: the eMMC holds the bootloader, the boot images, the
+# radio calibration and the IMEI partitions right next to Debian's; a
+# one-click partition editor is too easy a way to destroy them.
 Package: partitionmanager
+Pin: release a=*
+Pin-Priority: -1
+
+# Plasma's "Welcome" tour pops up on first login; the Gemini's own first-boot
+# setup (Calamares) already covers it (2026-10-09).
+Package: plasma-welcome
 Pin: release a=*
 Pin-Priority: -1

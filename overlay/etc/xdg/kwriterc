@@ -1,0 +1,4 @@
+# Gemini PDA: no menu bar by default (the screen is only 540 points tall at
+# 2x). Ctrl+M or the hamburger menu brings it back; that choice is per user.
+[MainWindow]
+MenuBar=Disabled
