@@ -220,7 +220,8 @@ font (SIL Open Font License 1.1) and [stb](https://github.com/nothings/stb)
 ## Docs
 
 - **Plan and status:** [docs/plan.md](docs/plan.md)
-- **Build + flash + first boot:** [docs/flashing.md](docs/flashing.md)
+- **Install (for users):** [docs/install.md](docs/install.md)
+- **Build + flash + first boot (development):** [docs/flashing.md](docs/flashing.md)
 - **Update a running Gemini (no reflash):** [docs/updating.md](docs/updating.md)
 - **Clean-flash beta test:** [docs/beta-test.md](docs/beta-test.md)
 
