@@ -1,0 +1,15 @@
+# After first-boot setup: uninstall Calamares on the next boot (it can't
+# remove itself while it runs). Only does anything when Calamares' last step
+# left /var/lib/gemini/remove-calamares.
+[Unit]
+Description=Remove Calamares after the Gemini first-boot setup
+ConditionPathExists=/var/lib/gemini/remove-calamares
+After=local-fs.target
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gemini-first-setup cleanup
+
+[Install]
+WantedBy=multi-user.target

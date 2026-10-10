@@ -109,6 +109,11 @@ install -m 600 "$S/authorized_keys" "$H/.ssh/authorized_keys"
 in_chroot chown -R "$GEMINI_USER:$GEMINI_USER" "/home/$GEMINI_USER/.ssh"
 # root stays locked (no password); use sudo.
 
+if [ "${GEMINI_FIRST_SETUP:-0}" = 1 ]; then
+    echo "    customize: first-boot setup (autologin $GEMINI_USER -> Calamares)"
+    install -D -m 644 "$S/firstboot/20-gemini-setup.conf" "$R/etc/sddm.conf.d/20-gemini-setup.conf"
+fi
+
 echo "    customize: base services"
 in_chroot systemctl enable ssh.service NetworkManager.service systemd-timesyncd.service
 

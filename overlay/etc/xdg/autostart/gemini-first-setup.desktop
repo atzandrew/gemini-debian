@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Gemini first-time setup
+Comment=Create your user account (runs once, on a freshly flashed Gemini)
+Exec=/usr/local/sbin/gemini-first-setup start
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

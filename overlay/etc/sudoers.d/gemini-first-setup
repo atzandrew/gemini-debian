@@ -1,0 +1,4 @@
+# First-boot setup: the build-time account may start Calamares as root
+# without a password (gemini-first-setup start; sudo -E keeps the Wayland
+# session variables). Calamares removes that account at the end.
+@GEMINI_USER@ ALL=(root) NOPASSWD:SETENV: /usr/bin/calamares

@@ -153,6 +153,13 @@ for m in $MODULE_OVERRIDES; do
     [ -f "$src" ] || die "module override $m not in the module tree (find $STAGE/modules -name 'geminipda*')"
     install -D -m 644 "$src" "$F/usr/lib/modules/$KVER/$m"
 done
+# @GEMINI_USER@ in the files tree and firstboot/ = the build-time account
+# (first-boot setup: Calamares removeuser, sudo rule, SDDM autologin).
+grep -rl '@GEMINI_USER@' "$F" | xargs -r sed -i "s/@GEMINI_USER@/$GEMINI_USER/g"
+# firstboot/: installed into fresh images only (bin/customize.sh), never into
+# the update bundle — a running Gemini must not log in automatically again.
+rm -rf "$STAGE/firstboot" && cp -r firstboot "$STAGE/firstboot"
+sed -i "s/@GEMINI_USER@/$GEMINI_USER/g" "$STAGE"/firstboot/*
 echo "    files tree: $(find "$F" -type f | wc -l) files"
 
 echo "==> 2/3 login"
