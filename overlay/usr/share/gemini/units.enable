@@ -12,4 +12,5 @@ gemini-battery-guard.service
 gemini-backlight-default.service
 sddm.service
 gemini-audio.service
+gemini-sleep-gpio.service
 gemini-first-setup-cleanup.service

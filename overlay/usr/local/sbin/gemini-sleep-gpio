@@ -1,0 +1,36 @@
+#!/bin/sh
+# gemini-sleep-gpio off|on — cut always-on board loads for system sleep, put them back after.
+#
+# Measured 2026-10-16 (gemini-nixos notes/connsys-sleep.md E26/E27, awake, SPM-run state):
+#   speaker amps, SoC GPIO 243 + 244 (DO 0x10005170 bits 19/20)  ~60 mA
+#   USB1 VBUS boost (GPIO 94), sw7226-en (72), fusb301a-sw-en (70) (DO 0x10005120 bits 30/8/6)  ~11 mA
+# The amps sit on whenever a session holds the speaker output (gemini-audio), playing or not.
+# 70/72/94 are kernel GPIO hogs, so the lines can't be requested: write the pio DO registers
+# directly (pinctrl-mt6797: DO = 0x10005100 + 0x10 * (pin / 32)). "off" saves the bits it
+# clears in /run, "on" restores exactly those, so a speaker/headphone choice made before
+# sleep comes back unchanged.
+# Run by gemini-sleep-gpio.service around sleep.target. NOTE: system suspend itself still
+# hangs on this kernel (see bin/apply-files.sh UPower note); this is in place for when it works.
+# TODO: amps belong in the kernel as a DAPM simple-audio-amplifier (on only while a stream
+# plays, pop-free ordering) — then drop GPIO 243/244 from here and from gemini-audio.
+S=/run/gemini-sleep-gpio
+G1=0x10005120; M1=$(( (1 << 30) | (1 << 8) | (1 << 6) ))
+G2=0x10005170; M2=$(( (1 << 19) | (1 << 20) ))
+rd() { busybox devmem "$1" 32; }
+wr() { busybox devmem "$1" 32 "$2"; }
+case "$1" in
+off)
+	a=$(rd $G1); b=$(rd $G2)
+	echo "$(( a & M1 )) $(( b & M2 ))" > "$S"
+	wr $G2 $(( b & ~M2 ))	# amps first
+	wr $G1 $(( $(rd $G1) & ~M1 ))
+	echo "gemini-sleep-gpio: off (saved G1 bits $(( a & M1 )), G2 bits $(( b & M2 )))" ;;
+on)
+	[ -f "$S" ] || { echo "gemini-sleep-gpio: nothing saved"; exit 0; }
+	read s1 s2 < "$S"
+	wr $G1 $(( ($(rd $G1) & ~M1) | s1 ))
+	wr $G2 $(( ($(rd $G2) & ~M2) | s2 ))	# amps last
+	rm -f "$S"
+	echo "gemini-sleep-gpio: restored" ;;
+*)	echo "usage: gemini-sleep-gpio off|on" >&2; exit 2 ;;
+esac
