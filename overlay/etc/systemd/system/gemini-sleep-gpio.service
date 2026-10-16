@@ -1,8 +1,8 @@
-# Speaker amps + USB1 VBUS/switch enables off across system sleep (~71 mA,
+# Speaker amps off across system sleep (~60 mA,
 # see /usr/local/sbin/gemini-sleep-gpio). Started before sleep.target,
 # stopped (= restored) when sleep.target goes away on resume.
 [Unit]
-Description=Gemini board loads off for sleep (speaker amps, USB1 VBUS)
+Description=Gemini speaker amps off for sleep
 Before=sleep.target
 StopWhenUnneeded=yes
 
