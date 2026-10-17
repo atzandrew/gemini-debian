@@ -43,6 +43,13 @@ on top of cjdell's work (kernel source changes live in
 - **Power:** a real power off (the PMIC power-down now runs while interrupts
   are still on), an MT6351 real-time clock driver, and Esc/On long press as the
   power key.
+- **System suspend** (2026-10-17): the `mt6797-suspend` module puts the SoC to
+  sleep through the SPM with the vendor suspend firmware
+  ([f381305](https://github.com/atzandrew/gemini-nixos/commit/f381305),
+  [68d439a](https://github.com/atzandrew/gemini-nixos/commit/68d439a)). The silver
+  key or closing the lid suspends; the keys or opening the lid wake it. About
+  250 mA while suspended, on battery only for now; the Debian side is
+  `gemini-suspend-prep.service`.
 - **Charging screen:** the initrd recognises the bootloader's off-mode-charging
   boot and shows a battery screen (`devices/planet-geminipda/charger.sh`,
   `charger-ui/`). The kernel stays quiet until that decision.
