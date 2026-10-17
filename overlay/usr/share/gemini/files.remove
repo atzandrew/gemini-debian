@@ -1,0 +1,12 @@
+# Files from older releases that bin/apply-files.sh deletes (paths from /).
+# 2026-10-16: speaker amps moved into the kernel (DAPM), so the session amp
+# unit, the sleep-time amp switch and the never-suspend PipeWire rule go;
+# speaker/headphone is now the PipeWire port, so gemini-audio moved to
+# /usr/local/bin and needs no sudo rule or root state file.
+usr/local/sbin/gemini-audio
+etc/sudoers.d/gemini-audio
+var/lib/gemini/audio-output
+etc/systemd/user/gemini-audio-session.service
+etc/systemd/system/gemini-sleep-gpio.service
+usr/local/sbin/gemini-sleep-gpio
+etc/wireplumber/wireplumber.conf.d/51-gemini-no-suspend.conf

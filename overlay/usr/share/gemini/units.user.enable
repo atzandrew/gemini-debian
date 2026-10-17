@@ -1,2 +1,1 @@
 # User units enabled for every user (systemctl --global) by bin/apply-files.sh.
-gemini-audio-session.service

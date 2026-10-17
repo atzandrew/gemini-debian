@@ -26,7 +26,7 @@ echo "apply-files: $n files installed"
 chmod 755 "$R"/usr/local/sbin/*
 [ ! -d "$R/usr/local/bin" ] || chmod 755 "$R"/usr/local/bin/*
 chmod 600 "$R"/etc/NetworkManager/system-connections/*.nmconnection
-# sudoers drop-ins: sudo wants 0440 (gemini-audio amp switch, 2026-10-03)
+# sudoers drop-ins: sudo wants 0440
 chmod 440 "$R"/etc/sudoers.d/gemini-*
 
 # Bluetooth: Privacy=off. bluetoothd's boot-time auto power-on runs
@@ -76,9 +76,21 @@ for u in $(list units.disable); do sc disable "$u" >/dev/null 2>&1 || :; done
 sc enable $(list units.enable)
 # shellcheck disable=SC2046
 sc mask $(list units.mask)
-# Per-user units for every user (e.g. gemini-audio-session: speaker amps on
-# only once the session's PipeWire holds the output).
+# Per-user units for every user (systemctl --global).
+u=$(list units.user.disable)
+# shellcheck disable=SC2086
+[ -z "$u" ] || sc --global disable $u >/dev/null 2>&1 || :
 u=$(list units.user.enable)
 # shellcheck disable=SC2086
 [ -z "$u" ] || sc --global enable $u
 echo "apply-files: units enabled/disabled/masked"
+
+# Files left behind by older releases (their units are disabled above).
+n=0
+for f in $(list files.remove); do
+    case "$f" in /*|*..*) echo "apply-files: skipping bad path $f" >&2; continue ;; esac
+    [ -e "$R/$f" ] || [ -L "$R/$f" ] || continue
+    rm -f "$R/$f"; n=$((n + 1))
+done
+echo "apply-files: $n obsolete files removed"
+[ -n "$R" ] || [ "$n" = 0 ] || systemctl daemon-reload

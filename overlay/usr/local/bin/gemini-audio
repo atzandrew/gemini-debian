@@ -1,0 +1,69 @@
+#!/bin/bash
+# gemini-audio — Gemini PDA audio route + speaker/headphone choice.
+#
+#   gemini-audio speaker           speakers + jack
+#   gemini-audio headphone         jack only
+#   gemini-audio toggle | status
+#   gemini-audio route             connect playback to the headphone drivers
+#                                  (root, at boot: gemini-audio.service)
+#
+# Speakers vs headphones is the PipeWire output port of the built-in sink, the
+# same choice as "Speakers" / "Headphones" in the desktop sound settings.
+# WirePlumber saves it per user. No sudo needed; run it as yourself.
+#
+# Hardware (gemini-nixos services/scripts/{audio-defaults.sh,speaker}, re-verified
+# on Debian 2026-10-03):
+#  - Card 0 'mt6797-mt6351'. Playback is silent until the AFE switches
+#    DL1 -> ADDA and the codec HP muxes are set (they boot Off/Open). DAPM only
+#    powers them while a stream runs, so leaving them set costs nothing.
+#    Needs the boot image with the mt6797 AFE component-probe fix (gemini-nixos
+#    2026-10-03); older kernels have no 'ADDA_DL_CH1 DL1_CH1' control.
+#  - The built-in speakers hang off the same HPL/HPR drivers through external
+#    amps (SoC GPIO 243 + 244). Since the gemini-nixos 2026-10-16 kernel the
+#    sound card drives them itself (DAPM "Speaker" widget): on only while
+#    something plays, off a few seconds after (saves ~60 mA, no idle hiss).
+#    Its 'Speaker Switch' control is what PipeWire's Headphones port turns
+#    off. No jack detection: on the Speakers port, speakers and jack both play.
+set -u
+CARD=0
+
+route() {
+    amixer -q -c "$CARD" cset name='ADDA_DL_CH1 DL1_CH1' on &&
+    amixer -q -c "$CARD" cset name='ADDA_DL_CH2 DL1_CH2' on &&
+    amixer -q -c "$CARD" sset 'HPL Mux' 'Audio Playback' &&
+    amixer -q -c "$CARD" sset 'HPR Mux' 'Audio Playback'
+}
+
+# The built-in sink (alsa_output.platform-sound.*).
+sink() { pactl list sinks short | awk '$2 ~ /^alsa_output\.platform-sound\./ { print $2; exit }'; }
+
+port() { pactl list sinks | awk -v s="$1" '$1 == "Name:" { on = ($2 == s) } on && /Active Port:/ { print $3; exit }'; }
+
+case "${1:-}" in
+    route)
+        # The card can appear a moment after this unit starts; retry briefly.
+        for _ in $(seq 20); do route 2>/dev/null && break; sleep 0.5; done
+        route || { echo "gemini-audio: route controls missing (old boot image?)" >&2; exit 1; }
+        echo "gemini-audio: route set" ;;
+    speaker|headphone|toggle|status)
+        # Old habit: `sudo gemini-audio ...` — root has no PipeWire, use the caller's.
+        if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ]; then
+            exec runuser -u "$SUDO_USER" -- env XDG_RUNTIME_DIR="/run/user/$(id -u "$SUDO_USER")" "$0" "$@"
+        fi
+        S=$(sink)
+        [ -n "$S" ] || { echo "gemini-audio: built-in sink not found (is PipeWire running in this session?)" >&2; exit 1; }
+        cur=$(port "$S")
+        case "$1" in
+            speaker)   want=analog-output-speaker ;;
+            headphone) want=analog-output-headphones ;;
+            toggle)    if [ "$cur" = analog-output-speaker ]; then want=analog-output-headphones; else want=analog-output-speaker; fi ;;
+            status)    want=$cur ;;
+        esac
+        [ "$want" = "$cur" ] || pactl set-sink-port "$S" "$want" || exit 1
+        case "$want" in
+            analog-output-speaker)    echo "output: speaker" ;;
+            analog-output-headphones) echo "output: headphone" ;;
+            *)                        echo "output: unknown ($want)" ;;
+        esac ;;
+    *) echo "usage: gemini-audio speaker|headphone|toggle|status|route" >&2; exit 2 ;;
+esac
