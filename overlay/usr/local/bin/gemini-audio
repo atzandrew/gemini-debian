@@ -23,7 +23,11 @@
 #    sound card drives them itself (DAPM "Speaker" widget): on only while
 #    something plays, off a few seconds after (saves ~60 mA, no idle hiss).
 #    Its 'Speaker Switch' control is what PipeWire's Headphones port turns
-#    off. No jack detection: on the Speakers port, speakers and jack both play.
+#    off. With it off the kernel also keeps the codec's headphone chain
+#    running at idle ("HP Idle"), so the jack stays silent between sounds
+#    instead of buzzing (gemini-nixos 48003ea). No jack detection: on the
+#    Speakers port, speakers and jack both play, and the jack can buzz
+#    between sounds.
 set -u
 CARD=0
 
