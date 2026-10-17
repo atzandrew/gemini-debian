@@ -1,0 +1,3 @@
+# User units disabled for every user (systemctl --global) by bin/apply-files.sh,
+# before their files are removed (files.remove).
+gemini-audio-session.service

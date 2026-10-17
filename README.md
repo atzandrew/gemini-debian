@@ -62,7 +62,7 @@ unit's own radio data.
 - **No suspend yet:** with the screen off the battery still drains in hours,
   not days. Switch it off when you're not using it.
 - No automatic headphone or lid-close detection
-  (switch outputs with `sudo gemini-audio speaker|headphone`).
+  (switch Speakers/Headphones in the sound settings, or `gemini-audio speaker|headphone`).
 - WPA3-only Wi-Fi networks don't work (WPA2 and mixed WPA2/WPA3 do).
 - Only the stock Android-only partition layout is supported (no multi-boot).
 - Kernel updates come as new boot images from this project, not through

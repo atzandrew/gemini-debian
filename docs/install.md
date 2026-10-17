@@ -142,6 +142,6 @@ Undo: `sudo dd if=/dev/zero of=/dev/mmcblk0p2 bs=32 count=1 conv=fsync`.
 - **Switching off:** long-press Esc/On → Shut down. Switched off, it stays off
   and keeps its charge.
 - **Charging while off** shows a battery screen; hold Esc/On to start Debian.
-- **Speaker/headphones:** `sudo gemini-audio headphone|speaker|toggle`
+- **Speaker/headphones:** Speakers or Headphones in the sound settings, or `gemini-audio headphone|speaker|toggle` (no sudo)
   (no automatic headphone detection yet).
 - Known limitations are listed in the [README](../README.md#known-limitations).

@@ -96,7 +96,7 @@ Then unplug from Dragon and power on with Esc/On (docs/flashing.md §3). The
    Plasma; it connects within a few seconds of the first failure, and
    `journalctl -b -u gemini-wifi-fixup` shows `WPA3 (sae) -> WPA2`.
 6. Spot checks by hand: no tearing while scrolling, a Bluetooth LE mouse,
-   speaker + headphones (`sudo gemini-audio toggle`), the charging screen
+   speaker + headphones (Speakers/Headphones in the sound settings, or `gemini-audio toggle`), the charging screen
    (power off, plug in).
 
 ## 5. eMMC cold boots (HS200, three times)
