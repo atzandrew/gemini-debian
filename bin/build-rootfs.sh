@@ -73,6 +73,12 @@ GAUGE=$(cd "$NIXOS" && nix build .#packages.aarch64-linux.mt6351-gauge --print-o
 [ -f "$GAUGE/mt6351-gauge.ko" ] || die "mt6351-gauge build has no mt6351-gauge.ko ($GAUGE)"
 install -D -m 644 "$GAUGE/mt6351-gauge.ko" "$STAGE/modules/$KVER/extra/mt6351-gauge.ko"
 echo "    fuel gauge module: $GAUGE"
+# System suspend through the SPM (gemini-nixos .../kernel/modules/mt6797-suspend),
+# same kind of out-of-tree module. Loaded by etc/modules-load.d/gemini-suspend.conf.
+SUSP=$(cd "$NIXOS" && nix build .#packages.aarch64-linux.mt6797-suspend --print-out-paths --no-link)
+[ -f "$SUSP/mt6797-suspend.ko" ] || die "mt6797-suspend build has no mt6797-suspend.ko ($SUSP)"
+install -D -m 644 "$SUSP/mt6797-suspend.ko" "$STAGE/modules/$KVER/extra/mt6797-suspend.ko"
+echo "    suspend module: $SUSP"
 echo "$KVER" > "$STAGE/kver"
 # A release image must come only from committed repo state. Uncommitted
 # changes to tracked files are built in (nix flakes include them), so record

@@ -1,6 +1,5 @@
-# Suspend/hibernate hang this device (no wake source) — keep them impossible.
-sleep.target
-suspend.target
+# Hibernate needs swap + a resume path this device doesn't have.
+# (sleep.target / suspend.target: unmasked 2026-10-17, see units.unmask.)
 hibernate.target
 hybrid-sleep.target
 suspend-then-hibernate.target
