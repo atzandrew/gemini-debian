@@ -1,0 +1,4 @@
+# Units masked by older releases that work now (bin/apply-files.sh unmasks them).
+# System suspend through the SPM (mt6797-suspend module), 2026-10-17.
+sleep.target
+suspend.target

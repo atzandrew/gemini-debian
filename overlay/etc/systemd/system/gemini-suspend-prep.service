@@ -1,0 +1,18 @@
+# Around every system suspend: panel display-off/on, connsys off/on, A72s off
+# (/usr/local/sbin/gemini-suspend-prep). RequiredBy sleep.target, so a failing
+# "pre" cancels the suspend; "post" runs when sleep.target stops after resume.
+[Unit]
+Description=Gemini: prepare the hardware for system suspend
+Before=sleep.target
+StopWhenUnneeded=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gemini-suspend-prep pre
+ExecStop=/usr/local/sbin/gemini-suspend-prep post
+TimeoutStartSec=60
+TimeoutStopSec=60
+
+[Install]
+RequiredBy=sleep.target

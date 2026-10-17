@@ -13,3 +13,4 @@ gemini-backlight-default.service
 sddm.service
 gemini-audio.service
 gemini-first-setup-cleanup.service
+gemini-suspend-prep.service

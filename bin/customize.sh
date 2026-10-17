@@ -136,6 +136,7 @@ fix_rel /etc/os-release ../usr/lib/os-release
 [ -d "$R/usr/lib/modules/$KVER/kernel" ] || { echo "!! modules not installed"; exit 1; }
 [ -f "$R/usr/lib/modules/$KVER/extra/mt6351-gauge.ko" ] || { echo "!! mt6351-gauge.ko missing (fuel gauge)"; exit 1; }
 in_chroot modinfo -k "$KVER" -n mt6351_gauge >/dev/null 2>&1 || { echo "!! mt6351_gauge not in modules.dep"; exit 1; }
+in_chroot modinfo -k "$KVER" -n mt6797_suspend >/dev/null 2>&1 || { echo "!! mt6797_suspend not in modules.dep (system suspend)"; exit 1; }
 # Core directories must be world-readable/traversable or nothing but root works.
 for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr/share /var /home; do
     m=$(stat -c %a "$R$d")

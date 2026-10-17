@@ -74,6 +74,8 @@ list() { [ -f "$R/usr/share/gemini/$1" ] || return 0; sed -e 's/#.*//' "$R/usr/s
 for u in $(list units.disable); do sc disable "$u" >/dev/null 2>&1 || :; done
 # shellcheck disable=SC2046
 sc enable $(list units.enable)
+# Masked by an older release but wanted now (mask below wins if listed in both).
+for u in $(list units.unmask); do sc unmask "$u" >/dev/null 2>&1 || :; done
 # shellcheck disable=SC2046
 sc mask $(list units.mask)
 # Per-user units for every user (systemctl --global).
@@ -83,7 +85,7 @@ u=$(list units.user.disable)
 u=$(list units.user.enable)
 # shellcheck disable=SC2086
 [ -z "$u" ] || sc --global enable $u
-echo "apply-files: units enabled/disabled/masked"
+echo "apply-files: units enabled/disabled/unmasked/masked"
 
 # Files left behind by older releases (their units are disabled above).
 n=0

@@ -1,0 +1,88 @@
+#!/bin/sh
+# gemini-suspend-prep pre|post — run by gemini-suspend-prep.service around every
+# system suspend (RequiredBy=sleep.target: if "pre" fails, systemd cancels that
+# suspend). The suspend itself is the mt6797-suspend kernel module (gemini-nixos
+# devices/planet-geminipda/kernel/modules/mt6797-suspend): SPM sleep, woken by the
+# Esc/On or silver key or by opening the lid.
+#
+# Until the kernel does these itself (gemini-nixos plan "suspend step 3"):
+#   - A72s (cpu8/9) offline for good: CPU_ON(8) hangs after SPM sleep. Unbound
+#     workqueues move to cpu0-7.
+#   - Connsys (Wi-Fi/BT) off, so the 26 MHz clock can stop; put back after.
+#   - Panel: DPMS off, then DSI DCS 0x28 (display off) — never 0x10 — and
+#     0x29 after. Without it the LCD ghosts when the SPM stops the clocks.
+# Refuses (= no suspend) when: the module isn't loaded, external power is in
+# (SPM suspend untested there), DSI isn't in the state LK left, or the display
+# layer is still on (e.g. at the login screen, where DPMS can't be set).
+set -u
+S=/run/gemini-suspend
+mkdir -p "$S"
+log() { echo "$*"; }
+fail() { log "refusing suspend: $*"; exit 1; }
+
+B=0x1401c000		# DSI0
+rd() { busybox devmem $(($B + $1)) 32; }
+wr() { busybox devmem $(($B + $1)) 32 $2; }
+dcs() {	# DCS short, no param, via VM_CMD in video mode (gemini-nixos bin/sleep-tests/dcs.sh)
+	st=$(rd 0x0c); wr 0x0c $(( st & ~0x20 )); wr 0x130 $(( ($1 << 16) | (0x05 << 8) | 0x21 ))
+	s=$(rd 0x00); wr 0x00 $(( s & ~0x10000 )); wr 0x00 $(( s | 0x10000 ))
+	i=0; while [ $(( $(rd 0x0c) & 0x20 )) -eq 0 ]; do i=$((i+1)); [ $i -gt 200 ] && { log "dcs $1: no VM_CMD_DONE"; return 1; }; done
+	st=$(rd 0x0c); wr 0x0c $(( st & ~0x20 ))
+}
+l0() { busybox devmem 0x1400b02c 32; }	# OVL0 layer 0 enable
+dsi_ok() { [ "$(rd 0x14)" = 0x00000001 ] && [ $(( $(rd 0x130) & 0xff )) -eq $((0x21)) ]; }
+dpms() {	# every logged-in Wayland session
+	for s in $(loginctl list-sessions --no-legend | awk '{print $1}'); do
+		[ "$(loginctl show-session "$s" -p Type --value)" = wayland ] || continue
+		[ "$(loginctl show-session "$s" -p Active --value)" = yes ] || continue
+		u=$(loginctl show-session "$s" -p Name --value); uid=$(id -u "$u")
+		timeout 5 runuser -u "$u" -- env XDG_RUNTIME_DIR=/run/user/$uid WAYLAND_DISPLAY=wayland-0 \
+			kscreen-doctor --dpms "$1" >/dev/null 2>&1
+	done
+}
+conn_on() {
+	echo "7 3 1" > /proc/driver/wmt_dbg
+	echo 0 > /sys/module/mtk_wcn/parameters/conn_pwr_off
+}
+radios_back() {
+	[ "$(cat $S/wifi 2>/dev/null)" = disabled ] || nmcli radio wifi on
+	if [ "$(cat $S/bt 2>/dev/null)" = yes ]; then sleep 8; timeout 10 bluetoothctl power on >/dev/null 2>&1; fi
+}
+
+case "${1:-}" in
+pre)
+	[ -d /sys/module/mt6797_suspend ] || fail "mt6797-suspend module not loaded"
+	grep -q '\[deep\]' /sys/power/mem_sleep || fail "mem_sleep is not deep: $(cat /sys/power/mem_sleep)"
+	[ "$(cat /sys/class/power_supply/bq25890-charger-0/online 2>/dev/null)" = 0 ] || fail "on external power"
+	dsi_ok || fail "DSI not in the expected video mode"
+
+	echo ff > /sys/devices/virtual/workqueue/cpumask
+	for c in 9 8; do echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null; done
+
+	nmcli radio wifi > $S/wifi
+	timeout 5 bluetoothctl show 2>/dev/null | grep -q "Powered: yes" && echo yes > $S/bt || echo no > $S/bt
+	nmcli radio wifi off; timeout 5 bluetoothctl power off >/dev/null 2>&1; sleep 2
+	echo 1 > /sys/module/mtk_wcn/parameters/conn_pwr_off
+	echo "7 0 0" > /proc/driver/wmt_dbg; echo "7 3 0" > /proc/driver/wmt_dbg
+	sleep 1
+
+	dpms off; sleep 2
+	if ! dcs 0x28; then dpms on; conn_on; radios_back; fail "DCS 0x28 failed"; fi
+	if [ "$(l0)" != 0x00000000 ]; then
+		dcs 0x29; dpms on; conn_on; radios_back
+		fail "display layer still on (L0 $(l0); login screen?)"
+	fi
+	touch $S/active
+	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), panel display-off"
+	;;
+post)
+	[ -e $S/active ] || exit 0
+	rm -f $S/active
+	dcs 0x29 || log "DCS 0x29 failed"
+	dpms on
+	conn_on
+	radios_back
+	log "resumed: panel on, connsys back, cpus $(cat /sys/devices/system/cpu/online)"
+	;;
+*)	echo "usage: $0 pre|post" >&2; exit 2 ;;
+esac
