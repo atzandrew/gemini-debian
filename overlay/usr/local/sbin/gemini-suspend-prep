@@ -11,6 +11,8 @@
 #   - Connsys (Wi-Fi/BT) off, so the 26 MHz clock can stop; put back after.
 #   - Panel: DPMS off, then DSI DCS 0x28 (display off) — never 0x10 — and
 #     0x29 after. Without it the LCD ghosts when the SPM stops the clocks.
+#   - Touch: reset + re-init after resume (driver rebind), else ghost touches
+#     after the lid was shut.
 # Refuses (= no suspend) when: the module isn't loaded, external power is in
 # (SPM suspend untested there), DSI isn't in the state LK left, or the display
 # layer is still on (e.g. at the login screen, where DPMS can't be set).
@@ -79,6 +81,14 @@ post)
 	[ -e $S/active ] || exit 0
 	rm -f $S/active
 	dcs 0x29 || log "DCS 0x29 failed"
+	# Touch (SSD2092): its firmware keeps running through suspend and
+	# recalibrates against the keyboard when the lid is shut -> ghost touches
+	# after opening. Rebind = the probe's reset + init (fresh baseline).
+	# (Driver has no PM ops yet; proper fix = ssd2092 resume.)
+	if [ -e /sys/bus/i2c/drivers/ssd2092/4-0053 ]; then
+		echo 4-0053 > /sys/bus/i2c/drivers/ssd2092/unbind
+		echo 4-0053 > /sys/bus/i2c/drivers/ssd2092/bind || log "touch rebind failed"
+	fi
 	dpms on
 	conn_on
 	radios_back
