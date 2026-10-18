@@ -2,14 +2,18 @@
 # "nmcli radio wifi off" in its state file; the suspend test scripts switch
 # the radio off for each run, and a hang/WDT reset mid-run left Wi-Fi off
 # until someone logged in and enabled it (2026-10-17).
+# Must run after the phy exists: systemd-rfkill restores the saved soft-block
+# when phy0/phy1 appear (during gemini-wifi-internal) and undid an earlier
+# "radio on" (first version, 2026-10-17 22:33). Hence the order + short wait.
 [Unit]
 Description=Gemini: Wi-Fi radio on at boot
-After=NetworkManager.service
+After=NetworkManager.service gemini-wifi-internal.service systemd-rfkill.service
 Wants=NetworkManager.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/nmcli radio wifi on
+TimeoutStartSec=60
+ExecStart=/bin/sh -c "for i in $$(seq 30); do [ -e /sys/class/ieee80211/phy0 ] && break; sleep 1; done; sleep 3; exec /usr/bin/nmcli radio wifi on"
 
 [Install]
 WantedBy=multi-user.target
