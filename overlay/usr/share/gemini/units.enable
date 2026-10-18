@@ -7,6 +7,7 @@ gemini-wifi-nvram.service
 gemini-wifi-internal.service
 gemini-wifi-fixup.service
 gemini-wifi-fixup.path
+gemini-wifi-radio-on.service
 gemini-bt-hci.service
 gemini-battery-guard.service
 gemini-backlight-default.service

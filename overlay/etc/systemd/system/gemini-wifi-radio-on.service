@@ -1,0 +1,15 @@
+# Turn the Wi-Fi radio back on at every boot. NetworkManager persists
+# "nmcli radio wifi off" in its state file; the suspend test scripts switch
+# the radio off for each run, and a hang/WDT reset mid-run left Wi-Fi off
+# until someone logged in and enabled it (2026-10-17).
+[Unit]
+Description=Gemini: Wi-Fi radio on at boot
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nmcli radio wifi on
+
+[Install]
+WantedBy=multi-user.target
