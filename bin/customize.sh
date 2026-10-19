@@ -173,6 +173,8 @@ grep -q 'tuigreet' "$R/etc/greetd/config.toml" || { echo "!! greetd config is no
 # KWallet unlock at login (apply-files.sh edits greetd's PAM file).
 compgen -G "$R/usr/lib/*/security/pam_kwallet5.so" >/dev/null || { echo "!! pam_kwallet5.so missing (libpam-kwallet5)"; exit 1; }
 [ "$(grep -c 'pam_kwallet5' "$R/etc/pam.d/greetd")" = 2 ] || { echo "!! /etc/pam.d/greetd: want pam_kwallet5 auth + session lines"; exit 1; }
+grep -qE '^-?session.*pam_kwallet5\.so.*force_run' "$R/etc/pam.d/greetd" || { echo "!! /etc/pam.d/greetd: pam_kwallet5 session needs force_run (greetd = tty session)"; exit 1; }
+grep -qx 'First Use=false' "$R/etc/xdg/kwalletrc" || { echo "!! etc/xdg/kwalletrc missing (KWallet first-use wizard)"; exit 1; }
 # Console colours for tuigreet (gemini-console-palette.service).
 [ "$(grep -c ',' "$R/usr/share/gemini/vtrgb")" = 3 ] || { echo "!! usr/share/gemini/vtrgb malformed"; exit 1; }
 in_chroot sh -c "command -v setvtrgb" >/dev/null || { echo "!! setvtrgb missing (kbd)"; exit 1; }
