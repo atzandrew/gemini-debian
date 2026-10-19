@@ -50,6 +50,9 @@ on top of cjdell's work (kernel source changes live in
   key or closing the lid suspends; the keys or opening the lid wake it. About
   250 mA while suspended, on battery only for now; the Debian side is
   `gemini-suspend-prep.service`.
+  Since 2026-10-18 the A72 CPU rail (VPROC2) drops to 0.3 V while suspended
+  ([dc1fd99](https://github.com/atzandrew/gemini-nixos/commit/dc1fd99)): about
+  208 mA.
 - **Charging screen:** the initrd recognises the bootloader's off-mode-charging
   boot and shows a battery screen (`devices/planet-geminipda/charger.sh`,
   `charger-ui/`). The kernel stays quiet until that decision.
