@@ -150,6 +150,12 @@ for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr
     [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
 done
 m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
+# Debian's imv ships imv-wayland / imv-x11; a plain "imv" isn't guaranteed
+# (2026-10-19 build: missing). Point it at the Wayland one.
+if ! in_chroot sh -c "command -v imv" >/dev/null && [ -x "$R/usr/bin/imv-wayland" ]; then
+    ln -s ../../bin/imv-wayland "$R/usr/local/bin/imv"
+    echo "      imv -> imv-wayland (/usr/local/bin/imv)"
+fi
 for t in busybox i2cset iw debugfs nmcli greetd tuigreet firefox-esr \
          startplasma-wayland kwin_wayland Xwayland perf wpctl \
          gwenview ark kwrite okular unzip \
