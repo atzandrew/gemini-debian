@@ -9,11 +9,13 @@
 # the lid has been closed for GRACE seconds with no local user session; opening
 # the lid in time cancels it. The backlight is off while it waits.
 # Inside Plasma, PowerDevil handles the lid as before. A session that is
-# logging out (State=closing) counts as nobody logged in, so a lid closed
-# during a slow Shut Down also ends powered off (2026-10-18 overnight drain).
+# logging out counts as nobody logged in once logind removes it, so a lid
+# closed during a slow Shut Down also ends powered off (2026-10-18 drain).
+#
+# Event-driven: it sleeps in gdbus until logind signals a lid change or a
+# session coming or going (polling every 5 s cost ~1.5 s CPU a minute).
 set -u
 GRACE=${GRACE:-150}
-POLL=5
 BL=/sys/class/backlight/backlight/bl_power
 
 log() { echo "$*"; }
@@ -30,31 +32,42 @@ user_logged_in() {	# a local (seat) user session that isn't closing
 	done
 	return 1
 }
-uptime_s() { cut -d. -f1 /proc/uptime; }
+
+timer=
+bl_saved=
 bl_restore() {
 	[ -n "$bl_saved" ] && echo "$bl_saved" > "$BL" 2>/dev/null
 	bl_saved=
 }
-
-since=
-bl_saved=
-trap 'bl_restore; exit 0' TERM INT
-while :; do
+evaluate() {
 	if lid_closed && ! user_logged_in; then
-		if [ -z "$since" ]; then
-			since=$(uptime_s)
-			bl_saved=$(cat "$BL" 2>/dev/null)
-			echo 4 > "$BL" 2>/dev/null
-			log "lid closed with nobody logged in: powering off in ${GRACE} s unless it opens"
-		elif [ $(( $(uptime_s) - since )) -ge "$GRACE" ]; then
+		[ -n "$timer" ] && return
+		bl_saved=$(cat "$BL" 2>/dev/null)
+		echo 4 > "$BL" 2>/dev/null
+		log "lid closed with nobody logged in: powering off in ${GRACE} s unless it opens"
+		(
+			sleep "$GRACE"
+			lid_closed && ! user_logged_in || exit 0
 			log "lid still closed after ${GRACE} s at the login screen: powering off"
 			systemctl poweroff
-			exit 0
-		fi
-	elif [ -n "$since" ]; then
+		) &
+		timer=$!
+	elif [ -n "$timer" ]; then
+		kill "$timer" 2>/dev/null
+		timer=
 		bl_restore
-		since=
 		log "cancelled (lid opened or someone logged in)"
 	fi
-	sleep "$POLL"
-done
+}
+
+gdbus monitor --system --dest org.freedesktop.login1 --object-path /org/freedesktop/login1 | {
+	trap '[ -n "$timer" ] && kill "$timer" 2>/dev/null; bl_restore; exit 0' TERM INT
+	evaluate
+	while read -r line; do
+		case "$line" in
+		*LidClosed*|*SessionNew*|*SessionRemoved*) evaluate ;;
+		esac
+	done
+	log "gdbus monitor ended"
+	exit 1
+}
