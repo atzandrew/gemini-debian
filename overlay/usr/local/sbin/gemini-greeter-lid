@@ -7,7 +7,9 @@
 # ~208 mA and can hit the intermittent SPM hang. So logind ignores the lid and
 # the silver key (logind.conf.d/gemini.conf) and this watcher powers off once
 # the lid has been closed for GRACE seconds with no local user session; opening
-# the lid in time cancels it. The backlight is off while it waits.
+# the lid in time cancels it. It leaves the backlight alone: switching it off
+# behind the compositor's back left the screen dark after the lid opened
+# (2026-10-19), and it only saves 150 s of backlight before the power-off.
 # Inside Plasma, PowerDevil handles the lid as before. A session that is
 # logging out counts as nobody logged in once logind removes it, so a lid
 # closed during a slow Shut Down also ends powered off (2026-10-18 drain).
@@ -16,7 +18,6 @@
 # session coming or going (polling every 5 s cost ~1.5 s CPU a minute).
 set -u
 GRACE=${GRACE:-150}
-BL=/sys/class/backlight/backlight/bl_power
 
 log() { echo "$*"; }
 lid_closed() {
@@ -34,16 +35,9 @@ user_logged_in() {	# a local (seat) user session that isn't closing
 }
 
 timer=
-bl_saved=
-bl_restore() {
-	[ -n "$bl_saved" ] && echo "$bl_saved" > "$BL" 2>/dev/null
-	bl_saved=
-}
 evaluate() {
 	if lid_closed && ! user_logged_in; then
 		[ -n "$timer" ] && return
-		bl_saved=$(cat "$BL" 2>/dev/null)
-		echo 4 > "$BL" 2>/dev/null
 		log "lid closed with nobody logged in: powering off in ${GRACE} s unless it opens"
 		(
 			sleep "$GRACE"
@@ -55,13 +49,12 @@ evaluate() {
 	elif [ -n "$timer" ]; then
 		kill "$timer" 2>/dev/null
 		timer=
-		bl_restore
 		log "cancelled (lid opened or someone logged in)"
 	fi
 }
 
 gdbus monitor --system --dest org.freedesktop.login1 --object-path /org/freedesktop/login1 | {
-	trap '[ -n "$timer" ] && kill "$timer" 2>/dev/null; bl_restore; exit 0' TERM INT
+	trap '[ -n "$timer" ] && kill "$timer" 2>/dev/null; exit 0' TERM INT
 	evaluate
 	while read -r line; do
 		case "$line" in
