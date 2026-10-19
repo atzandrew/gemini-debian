@@ -53,10 +53,8 @@ on top of cjdell's work (kernel source changes live in
   Since 2026-10-18 the A72 CPU rail (VPROC2) drops to 0.3 V while suspended
   ([dc1fd99](https://github.com/atzandrew/gemini-nixos/commit/dc1fd99)): about
   208 mA.
-  Since 2026-10-19 a suspend refuses to start while the display is still on, and
-  it ends in a power-off after an hour asleep
-  ([3bc40af](https://github.com/atzandrew/gemini-nixos/commit/3bc40af); Debian:
-  `max_s` in `modprobe.d/gemini-suspend.conf`). At the login screen the lid
+  Since 2026-10-19 a suspend refuses to start while the display is still on
+  ([3bc40af](https://github.com/atzandrew/gemini-nixos/commit/3bc40af)). At the login screen the lid
   no longer suspends: `gemini-greeter-lid` powers off when it stays shut for
   2.5 minutes.
 - **Charging screen:** the initrd recognises the bootloader's off-mode-charging
