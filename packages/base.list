@@ -36,3 +36,6 @@ curl
 usbutils
 i2c-tools
 evtest
+
+# gemini-greeter-lid: gdbus monitor (logind lid/session signals)
+libglib2.0-bin
