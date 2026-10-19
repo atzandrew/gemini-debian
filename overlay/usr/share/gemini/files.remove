@@ -10,3 +10,8 @@ etc/systemd/user/gemini-audio-session.service
 etc/systemd/system/gemini-sleep-gpio.service
 usr/local/sbin/gemini-sleep-gpio
 etc/wireplumber/wireplumber.conf.d/51-gemini-no-suspend.conf
+# 2026-10-16: login screen is greetd + tuigreet again; SDDM's Gemini config
+# goes (the sddm package itself stays installed on an updated Gemini, disabled).
+etc/sddm.conf.d/10-gemini.conf
+etc/systemd/system/sddm.service.d/gemini.conf
+var/lib/sddm/.config/kwinoutputconfig.json

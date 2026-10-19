@@ -160,7 +160,7 @@ for m in $MODULE_OVERRIDES; do
     install -D -m 644 "$src" "$F/usr/lib/modules/$KVER/$m"
 done
 # @GEMINI_USER@ in the files tree and firstboot/ = the build-time account
-# (first-boot setup: Calamares removeuser, sudo rule, SDDM autologin).
+# (first-boot setup: Calamares removeuser, sudo rule, greetd automatic login).
 grep -rl '@GEMINI_USER@' "$F" | xargs -r sed -i "s/@GEMINI_USER@/$GEMINI_USER/g"
 # firstboot/: installed into fresh images only (bin/customize.sh), never into
 # the update bundle — a running Gemini must not log in automatically again.

@@ -33,11 +33,14 @@ dcs() {	# DCS short, no param, via VM_CMD in video mode (gemini-nixos bin/sleep-
 }
 l0() { busybox devmem 0x1400b02c 32; }	# OVL0 layer 0 enable
 dsi_ok() { [ "$(rd 0x14)" = 0x00000001 ] && [ $(( $(rd 0x130) & 0xff )) -eq $((0x21)) ]; }
-dpms() {	# every logged-in Wayland session
+dpms() {	# every active session that runs a Wayland compositor
+	# (by its socket, not logind's Type: a Plasma started from greetd's
+	# tuigreet or initial_session can be registered as Type=tty)
 	for s in $(loginctl list-sessions --no-legend | awk '{print $1}'); do
-		[ "$(loginctl show-session "$s" -p Type --value)" = wayland ] || continue
 		[ "$(loginctl show-session "$s" -p Active --value)" = yes ] || continue
+		[ "$(loginctl show-session "$s" -p Class --value)" = user ] || continue
 		u=$(loginctl show-session "$s" -p Name --value); uid=$(id -u "$u")
+		[ -S "/run/user/$uid/wayland-0" ] || continue
 		timeout 5 runuser -u "$u" -- env XDG_RUNTIME_DIR=/run/user/$uid WAYLAND_DISPLAY=wayland-0 \
 			kscreen-doctor --dpms "$1" >/dev/null 2>&1
 	done

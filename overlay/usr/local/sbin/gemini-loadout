@@ -1,0 +1,90 @@
+#!/bin/sh
+# gemini-loadout — the software choice from first-boot setup (Calamares
+# packagechooser page -> contextualprocess, as root, no chroot).
+#
+#   gemini-loadout full    stock Plasma apps; nothing removed (the light
+#                          apps stay installed too, they're small)
+#   gemini-loadout light   PCManFM-Qt, Alacritty, mpv, FeatherPad, imv
+#                          become the defaults and their KDE counterparts
+#                          are removed
+#   gemini-loadout status
+#
+# The image ships both sets, so this works offline. The choice is recorded
+# in /etc/gemini/loadout (gemini-beta-check reads it). Never fails: a problem
+# is logged and setup carries on with the stock apps.
+STATE=/etc/gemini/loadout
+# KDE apps the light set replaces (konsole-kpart, okular, ark, kcalc stay).
+REMOVE="konsole dolphin gwenview kwrite haruna"
+log() { echo "gemini-loadout: $*"; }
+
+# The .desktop file a package installs, preferring <package>.desktop (any
+# case) over helpers like pcmanfm-qt-desktop-pref.desktop or imv-dir.desktop.
+desktop_of() {
+    l=$(dpkg -L "$1" 2>/dev/null | grep '^/usr/share/applications/[^/]*\.desktop$')
+    f=$(printf '%s\n' "$l" | grep -i "/$1\.desktop\$" | head -1)
+    [ -n "$f" ] || f=$(printf '%s\n' "$l" | head -1)
+    [ -n "$f" ] && basename "$f"
+}
+
+light() {
+    fm=$(desktop_of pcmanfm-qt); term=$(desktop_of alacritty)
+    vid=$(desktop_of mpv); txt=$(desktop_of featherpad); img=$(desktop_of imv)
+    for v in "fm=$fm" "term=$term" "vid=$vid" "txt=$txt" "img=$img"; do
+        [ -n "${v#*=}" ] || { log "no .desktop file for ${v%%=*} -- light set not installed? keeping stock apps"; full; return; }
+    done
+
+    # System-wide defaults (users' own ~/.config/mimeapps.list wins).
+    {
+        echo "# Gemini light software set (gemini-loadout, first-boot setup)"
+        echo "[Default Applications]"
+        echo "inode/directory=$fm"
+        for m in png jpeg gif webp bmp tiff x-portable-pixmap heif avif jxl; do echo "image/$m=$img"; done
+        for m in mp4 x-matroska webm quicktime x-msvideo mpeg ogg x-flv 3gpp; do echo "video/$m=$vid"; done
+        for m in mpeg flac ogg x-vorbis+ogg opus x-wav wav mp4 aac x-m4a webm; do echo "audio/$m=$vid"; done
+        for m in text/plain text/markdown text/x-log text/csv application/x-shellscript \
+                 text/x-python application/json application/xml text/x-c text/x-c++; do echo "$m=$txt"; done
+    } > /etc/xdg/mimeapps.list
+    # Plasma's terminal (Ctrl+Alt+T, "Open Terminal Here").
+    K=/etc/xdg/kdeglobals
+    if [ -f "$K" ] && grep -q '^\[General\]' "$K"; then
+        sed -i -e '/^Terminal\(Application\|Service\)=/d' \
+               -e "/^\[General\]/a TerminalApplication=alacritty\nTerminalService=$term" "$K"
+    else
+        printf '\n[General]\nTerminalApplication=alacritty\nTerminalService=%s\n' "$term" >> "$K"
+    fi
+    log "defaults: files $fm, terminal $term, video/music $vid, text $txt, images $img"
+
+    # Remove the KDE counterparts -- but only if apt would remove exactly
+    # those (a dependency surprise must not take Plasma with it).
+    inst=""
+    for p in $REMOVE; do dpkg -s "$p" >/dev/null 2>&1 && inst="$inst $p"; done
+    if [ -n "$inst" ]; then
+        # shellcheck disable=SC2086
+        sim=$(apt-get -s purge $inst 2>/dev/null | sed -n 's/^Purg \([^ ]*\).*/\1/p' | sed 's/:.*//')
+        extra=$(for p in $sim; do case " $inst " in *" $p "*) ;; *) echo "$p" ;; esac; done | xargs)
+        if [ -z "$sim" ]; then
+            log "apt could not plan the removal of$inst -- leaving them installed"
+        elif [ -n "$extra" ]; then
+            log "removing$inst would also remove: $extra -- leaving them installed"
+        else
+            # shellcheck disable=SC2086
+            DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $inst >/dev/null 2>&1 \
+                && log "removed$inst (their unused libraries go with Calamares at the next boot)" \
+                || log "apt-get purge$inst failed -- leaving them"
+        fi
+    fi
+    mkdir -p "${STATE%/*}" && echo light > "$STATE"
+}
+
+full() {
+    mkdir -p "${STATE%/*}" && echo full > "$STATE"
+    log "stock Plasma apps"
+}
+
+case "${1:-}" in
+light) light ;;
+full) full ;;
+status) cat "$STATE" 2>/dev/null || echo "not chosen (image default: full)" ;;
+*) echo "usage: gemini-loadout full|light|status" >&2; exit 2 ;;
+esac
+exit 0

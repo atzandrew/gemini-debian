@@ -4,22 +4,50 @@
 #   gemini-first-setup start    (autostart, as the logged-in user) launch
 #                               Calamares as root — only while setup is due
 #   gemini-first-setup finish   (Calamares' last exec step, as root) end the
-#                               automatic login, mark setup as done, and
+#                               automatic login, give the new account the
+#                               default avatar, mark setup as done, and
 #                               queue the removal of Calamares
 #   gemini-first-setup cleanup  (gemini-first-setup-cleanup.service, next
 #                               boot) uninstall Calamares + the setup-only
 #                               sudo rule (it can't remove itself while running)
 #   gemini-first-setup status
 #
-# "Setup due" = a fresh image: the SDDM autologin file exists (only
-# bin/customize.sh installs it, never the update bundle), the done-marker
-# doesn't, and the user is the build-time account Calamares replaces.
-AUTOLOGIN=/etc/sddm.conf.d/20-gemini-setup.conf
+# "Setup due" = a fresh image: greetd's config ends with the first-boot
+# [initial_session] block (only bin/customize.sh appends it, never the
+# update bundle), the done-marker doesn't exist, and the user is the
+# build-time account Calamares replaces.
+GREETD=/etc/greetd/config.toml
+MARK='^# gemini-first-setup BEGIN'
 DONE=/var/lib/gemini/setup-done
 CLEANUP=/var/lib/gemini/remove-calamares
 SETUP_USER="@GEMINI_USER@"
+AVATAR=/usr/share/plasma/avatars/gemini-astronaut-render.png
 
-due() { [ -e "$AUTOLOGIN" ] && [ ! -e "$DONE" ]; }
+due() { grep -q "$MARK" "$GREETD" 2>/dev/null && [ ! -e "$DONE" ]; }
+
+# Default avatar for accounts that have none yet (the one Calamares just
+# made). ~/.face.icon comes from /etc/skel; AccountsService is what System
+# Settings -> Users and the lock screen show. Through accounts-daemon when it
+# runs (it owns those files), else written directly.
+set_avatars() {
+    [ -f "$AVATAR" ] || return 0
+    getent passwd | while IFS=: read -r u _ uid _ _ home _; do
+        [ "$uid" -ge 1000 ] && [ "$uid" -lt 60000 ] && [ "$u" != "$SETUP_USER" ] || continue
+        f=/var/lib/AccountsService/users/$u
+        grep -q '^Icon=' "$f" 2>/dev/null && continue
+        if busctl call org.freedesktop.Accounts "/org/freedesktop/Accounts/User$uid" \
+               org.freedesktop.Accounts.User SetIconFile s "$AVATAR" >/dev/null 2>&1; then
+            echo "gemini-first-setup: avatar set for $u"
+        else
+            install -D -m 644 "$AVATAR" "/var/lib/AccountsService/icons/$u"
+            mkdir -p "${f%/*}"
+            [ -f "$f" ] || printf '[User]\n' > "$f"
+            printf 'Icon=/var/lib/AccountsService/icons/%s\n' "$u" >> "$f"
+            echo "gemini-first-setup: avatar set for $u (file)"
+        fi
+        [ -e "$home/.face.icon" ] || { install -m 644 "$AVATAR" "$home/.face.icon" && chown "$u:" "$home/.face.icon"; }
+    done
+}
 
 case "${1:-}" in
 start)
@@ -27,7 +55,8 @@ start)
     [ "$(id -un)" = "$SETUP_USER" ] || exit 0
     exec sudo -n -E /usr/bin/calamares ;;
 finish)
-    rm -f "$AUTOLOGIN"
+    sed -i "/$MARK/,\$d" "$GREETD"
+    set_avatars
     mkdir -p "${DONE%/*}" && date -Is > "$DONE"
     touch "$CLEANUP"
     echo "gemini-first-setup: done; automatic login removed, Calamares goes at the next boot" ;;
@@ -41,7 +70,8 @@ cleanup)
     echo "gemini-first-setup: Calamares removed" ;;
 status)
     if due; then echo "setup due (user $SETUP_USER logs in automatically)"
-    else echo "setup done ($(cat "$DONE" 2>/dev/null || echo 'no autologin'))"; fi ;;
+    else echo "setup done ($(cat "$DONE" 2>/dev/null || echo 'no automatic login'))"; fi
+    [ ! -f /etc/gemini/loadout ] || echo "software: $(cat /etc/gemini/loadout)" ;;
 *)
     echo "usage: gemini-first-setup start|finish|cleanup|status" >&2; exit 2 ;;
 esac

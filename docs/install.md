@@ -94,9 +94,13 @@ several minutes. **Erases everything on Android's data partition.**
 2. Power on with **Esc/On** (hold ~3 s). Boot messages appear, then the
    screen goes dark for up to ~40 s on the very first boot (see 8.).
 3. **Setup starts by itself:** pick language, keyboard (Gemini US or UK),
-   your user name and password. It finishes, and the Gemini restarts.
-4. Log in at the login screen. Connect to Wi-Fi from the network icon in the
-   panel; networks saved there also connect at boot, before you log in.
+   your user name and password, and the software set: **Plasma** (the usual
+   KDE apps) or **Plasma Light** (PCManFM-Qt, Alacritty, imv, FeatherPad and
+   mpv instead of Dolphin, Konsole, Gwenview, KWrite and Haruna). It
+   finishes, and the Gemini restarts.
+4. Log in at the text login prompt (each typed character shows as `*`).
+   Connect to Wi-Fi from the network icon in the panel; networks saved
+   there also connect at boot, before you log in.
 
 On the first boot Debian also grows its filesystem to fill the whole
 partition (~55 GB) and copies your unit's Wi-Fi record from the `nvdata`
@@ -104,7 +108,7 @@ partition (read only; nothing is changed there).
 
 ## 7. Check it
 
-Open Konsole and run:
+Open a terminal (Konsole, or Alacritty with Plasma Light) and run:
 
 ```sh
 sudo gemini-beta-check

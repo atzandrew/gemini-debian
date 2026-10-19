@@ -1,0 +1,4 @@
+# Gemini PDA: show a * for each typed character at sudo's password prompt
+# (Konsole, Alacritty, any terminal). The keyboard is small and mis-presses
+# are easy; without feedback a missed key is invisible.
+Defaults pwfeedback

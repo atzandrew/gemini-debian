@@ -1,0 +1,9 @@
+# Gemini PDA: the lock screen shows the same default wallpaper as the
+# desktop (Wallpapers/gemini_01.png, installed by bin/build-rootfs.sh as the
+# Plasma wallpaper package Gemini01).
+[Greeter]
+WallpaperPlugin=org.kde.image
+
+[Greeter][Wallpaper][org.kde.image][General]
+Image=/usr/share/wallpapers/Gemini01/
+PreviewImage=/usr/share/wallpapers/Gemini01/

@@ -21,7 +21,8 @@ on Wayland, running on a current mainline-based kernel.
 - **Tear-free**, synced to the panel's refresh.
 - **Everyday apps included:** Firefox, Dolphin (files), Konsole, Gwenview
   (images), Okular (PDF), Ark (archives), KWrite (text), KCalc, Haruna
-  (video and music).
+  (video and music) — or pick **Plasma Light** at setup for PCManFM-Qt,
+  Alacritty, imv, FeatherPad and mpv instead.
 
 ### Up to date and more secure
 

@@ -1,0 +1,9 @@
+
+# gemini-first-setup BEGIN (fresh image only: bin/customize.sh appends this
+# block to /etc/greetd/config.toml; gemini-first-setup finish deletes from
+# this line to the end of the file). greetd runs the initial session once,
+# when it starts, without a password: the setup account logs in, and the
+# gemini-first-setup autostart opens Calamares.
+[initial_session]
+command = "startplasma-wayland"
+user = "@GEMINI_USER@"
