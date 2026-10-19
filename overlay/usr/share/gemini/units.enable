@@ -15,3 +15,4 @@ greetd.service
 gemini-audio.service
 gemini-first-setup-cleanup.service
 gemini-suspend-prep.service
+gemini-greeter-lid.service
