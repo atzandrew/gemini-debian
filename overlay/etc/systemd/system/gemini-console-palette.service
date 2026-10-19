@@ -1,0 +1,19 @@
+[Unit]
+# The 16 console colours, retuned to the Gemini01 wallpaper's night blues
+# (2026-10-19, "Night" in the Gemini tuigreet mockups). tuigreet can only use
+# the console's 16 named colours, so its theme (etc/greetd/config.toml) picks
+# names and this file decides what they look like. Applies to every VT;
+# Plasma is unaffected. Table: usr/share/gemini/vtrgb (rows R, G, B; index
+# 0 black = the background, 7 = default text, 8 dark grey, 15 white).
+Description=Gemini console colour palette (login screen)
+After=gemini-panfrost-load.service
+Before=greetd.service
+ConditionPathExists=/usr/share/gemini/vtrgb
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/setvtrgb /usr/share/gemini/vtrgb
+
+[Install]
+WantedBy=greetd.service

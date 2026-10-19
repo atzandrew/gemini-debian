@@ -163,6 +163,12 @@ dm=$(readlink "$R/etc/systemd/system/display-manager.service" || :)
 in_chroot getent passwd _greetd >/dev/null || { echo "!! no _greetd user (fix user= in etc/greetd/config.toml and etc/tmpfiles.d/gemini-tuigreet.conf)"; exit 1; }
 grep -q 'tuigreet' "$R/etc/greetd/config.toml" || { echo "!! greetd config is not the Gemini one (tuigreet)"; exit 1; }
 ! in_chroot dpkg -s sddm >/dev/null 2>&1 || { echo "!! sddm got installed"; exit 1; }
+# KWallet unlock at login (apply-files.sh edits greetd's PAM file).
+compgen -G "$R/usr/lib/*/security/pam_kwallet5.so" >/dev/null || { echo "!! pam_kwallet5.so missing (libpam-kwallet5)"; exit 1; }
+[ "$(grep -c 'pam_kwallet5' "$R/etc/pam.d/greetd")" = 2 ] || { echo "!! /etc/pam.d/greetd: want pam_kwallet5 auth + session lines"; exit 1; }
+# Console colours for tuigreet (gemini-console-palette.service).
+[ "$(grep -c ',' "$R/usr/share/gemini/vtrgb")" = 3 ] || { echo "!! usr/share/gemini/vtrgb malformed"; exit 1; }
+in_chroot sh -c "command -v setvtrgb" >/dev/null || { echo "!! setvtrgb missing (kbd)"; exit 1; }
 for m in packagechooser contextualprocess; do
     # (the first-boot Software page and the step that applies it)
     compgen -G "$R/usr/lib/*/calamares/modules/$m" >/dev/null || { echo "!! Calamares module $m missing"; exit 1; }

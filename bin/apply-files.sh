@@ -58,6 +58,21 @@ if [ -f "$UP" ]; then
     setkey CriticalPowerAction Ignore
 fi
 
+# KWallet (2026-10-19): unlock the user's wallet with the login password, as
+# SDDM's PAM file did. Lines go right after greetd's common-auth and
+# common-session includes, the same spots Debian's sddm PAM file uses. Only
+# the "greetd" service (the user's login), not "greetd-greeter" (_greetd).
+PG="$R/etc/pam.d/greetd"
+if [ -f "$PG" ] && ! grep -q 'pam_kwallet5' "$PG"; then
+    if grep -q '^@include common-auth' "$PG" && grep -q '^@include common-session' "$PG"; then
+        sed -i -e '/^@include common-auth/a auth    optional    pam_kwallet5.so' \
+               -e '/^@include common-session/a session optional    pam_kwallet5.so auto_start' "$PG"
+        echo "apply-files: pam_kwallet5 added to /etc/pam.d/greetd"
+    else
+        echo "apply-files: warning: /etc/pam.d/greetd has no common-auth/common-session include; KWallet not added" >&2
+    fi
+fi
+
 sc() { if [ -z "$R" ]; then systemctl "$@"; else chroot "$R" systemctl "$@"; fi; }
 list() { [ -f "$R/usr/share/gemini/$1" ] || return 0; sed -e 's/#.*//' "$R/usr/share/gemini/$1" | xargs; }
 [ -n "$R" ] || systemctl daemon-reload

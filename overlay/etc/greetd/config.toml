@@ -10,6 +10,10 @@
 #                        directory that doesn't exist, which hides the
 #                        X11 sessions (no X server in the image)
 #   --cmd                fallback when no session is remembered yet
+#   --greeting/--theme   "Night" look (2026-10-19): no visible box (border =
+#                        background), lavender labels, dim clock and keys.
+#                        Colour NAMES only; their RGB values come from
+#                        usr/share/gemini/vtrgb (gemini-console-palette).
 #
 # The first-boot image appends an [initial_session] block below (automatic
 # login of the setup account -> Calamares). gemini-first-setup finish
@@ -18,5 +22,5 @@
 vt = 1
 
 [default_session]
-command = "tuigreet --time --asterisks --remember --remember-session --sessions /usr/share/wayland-sessions --xsessions /usr/share/gemini/no-x11-sessions --cmd startplasma-wayland"
+command = "tuigreet --time --asterisks --remember --remember-session --sessions /usr/share/wayland-sessions --xsessions /usr/share/gemini/no-x11-sessions --cmd startplasma-wayland --greeting 'g e m i n i' --theme 'container=black;border=black;title=darkgray;text=gray;greet=white;time=darkgray;prompt=magenta;input=white;action=darkgray;button=magenta'"
 user = "_greetd"
