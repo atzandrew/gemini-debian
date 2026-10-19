@@ -15,7 +15,13 @@
 #     after the lid was shut.
 # Refuses (= no suspend) when: the module isn't loaded, external power is in
 # (SPM suspend untested there), DSI isn't in the state LK left, or the display
-# layer is still on (e.g. at the login screen, where DPMS can't be set).
+# layer is still on (e.g. at the login screen, where DPMS can't be set). The
+# module checks the display layer again with all tasks frozen (disp_check), in
+# case a compositor re-lit it after this script (2026-10-18 overnight drain).
+#
+# Unattended-suspend cap: the module wakes after max_s seconds asleep
+# (/etc/modprobe.d/gemini-suspend.conf) and "post" then powers off instead of
+# resuming, so a forgotten suspend can't drain the battery.
 set -u
 S=/run/gemini-suspend
 mkdir -p "$S"
@@ -78,11 +84,19 @@ pre)
 		fail "display layer still on (L0 $(l0); login screen?)"
 	fi
 	touch $S/active
-	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), panel display-off"
+	BAT=/sys/class/power_supply/mt6351-battery
+	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), panel display-off; battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
 	;;
 post)
 	[ -e $S/active ] || exit 0
 	rm -f $S/active
+	if [ "$(cat /sys/module/mt6797_suspend/parameters/last_wake 2>/dev/null)" = max_s ]; then
+		# Leave the panel off; only put back the saved Wi-Fi setting so it's on next boot.
+		[ "$(cat $S/wifi 2>/dev/null)" = disabled ] || nmcli radio wifi on
+		log "suspend cap reached ($(cat /sys/module/mt6797_suspend/parameters/max_s) s asleep): powering off"
+		systemctl --no-block poweroff
+		exit 0
+	fi
 	dcs 0x29 || log "DCS 0x29 failed"
 	# Touch (SSD2092): its firmware keeps running through suspend and
 	# recalibrates against the keyboard when the lid is shut -> ghost touches
