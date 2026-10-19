@@ -1,0 +1,6 @@
+# Gemini PDA: start every login with a clean desktop instead of reopening
+# the apps from the last session (Plasma's default) -- not enough CPU or RAM
+# to bring a whole session back at login. Users can change it in System
+# Settings -> Session -> Desktop Session.
+[General]
+loginMode=emptySession

@@ -10,13 +10,12 @@ bluez
 # later, the desktop's power/network controls
 polkitd
 
-# ---- login screen (beta, 2026-10-08): SDDM with a Wayland greeter run by
-# KWin (etc/sddm.conf.d/10-gemini.conf), replacing greetd/tuigreet. The X11
-# server packages that only existed for tuigreet's X sessions (startx,
-# xrandr, xinput, xbindkeys) went with it; Xwayland comes with kwin-wayland.
-sddm
-sddm-theme-breeze
-kde-config-sddm
+# ---- login screen (2026-10-16): greetd + tuigreet, a text greeter on tty1
+# (etc/greetd/config.toml), replacing SDDM (2026-10-08..16): no compositor
+# before login. Plasma (Wayland) starts after login; no X server
+# (Xwayland comes with kwin-wayland).
+greetd
+tuigreet
 # GL for KWin/Xwayland (replaced by the Gemini Mesa .debs when present)
 libgl1-mesa-dri
 libegl-mesa0
@@ -64,6 +63,15 @@ okular
 kcalc
 # video/music player (mpv-based)
 haruna
+# ---- light software set (2026-10-16): chosen instead of Dolphin, Konsole,
+# Gwenview, KWrite and Haruna on the first-boot setup's Software page
+# (Calamares packagechooser -> usr/local/sbin/gemini-loadout). Always
+# installed, so the choice works offline; "Plasma" keeps them too.
+pcmanfm-qt
+alacritty
+mpv
+featherpad
+imv
 # shell basics
 vim-tiny
 htop

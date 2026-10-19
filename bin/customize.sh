@@ -111,8 +111,15 @@ in_chroot chown -R "$GEMINI_USER:$GEMINI_USER" "/home/$GEMINI_USER/.ssh"
 
 if [ "${GEMINI_FIRST_SETUP:-0}" = 1 ]; then
     echo "    customize: first-boot setup (autologin $GEMINI_USER -> Calamares)"
-    install -D -m 644 "$S/firstboot/20-gemini-setup.conf" "$R/etc/sddm.conf.d/20-gemini-setup.conf"
+    # greetd has one config file: append the [initial_session] block
+    # (gemini-first-setup finish deletes it again).
+    cat "$S/firstboot/greetd-initial-session.toml" >> "$R/etc/greetd/config.toml"
+    grep -q '^\[initial_session\]' "$R/etc/greetd/config.toml" || { echo "!! greetd initial_session not added"; exit 1; }
 fi
+# Default avatar for new accounts (~/.face.icon; gemini-first-setup finish
+# also sets it in AccountsService). A real file, not a link: Plasma replaces
+# it when the user picks another picture.
+install -m 644 "$R/usr/share/plasma/avatars/gemini-astronaut-render.png" "$R/etc/skel/.face.icon"
 
 echo "    customize: base services"
 in_chroot systemctl enable ssh.service NetworkManager.service systemd-timesyncd.service
@@ -143,14 +150,24 @@ for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr
     [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
 done
 m=$(stat -c %a "$R/usr/bin/bash"); [ "$m" = 755 ] || { echo "!! /usr/bin/bash mode $m"; exit 1; }
-for t in busybox i2cset iw debugfs nmcli sddm firefox-esr \
+for t in busybox i2cset iw debugfs nmcli greetd tuigreet firefox-esr \
          startplasma-wayland kwin_wayland Xwayland perf wpctl \
-         gwenview ark kwrite okular unzip; do
+         gwenview ark kwrite okular unzip \
+         pcmanfm-qt alacritty mpv featherpad imv; do
     in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (device scripts / beta app set)"; exit 1; }
 done
-in_chroot systemctl is-enabled sddm.service >/dev/null 2>&1 || { echo "!! sddm.service not enabled"; exit 1; }
+in_chroot systemctl is-enabled greetd.service >/dev/null 2>&1 || { echo "!! greetd.service not enabled"; exit 1; }
 dm=$(readlink "$R/etc/systemd/system/display-manager.service" || :)
-[ "${dm##*/}" = sddm.service ] || { echo "!! display-manager.service is not SDDM: '$dm'"; exit 1; }
+[ "${dm##*/}" = greetd.service ] || { echo "!! display-manager.service is not greetd: '$dm'"; exit 1; }
+# etc/greetd/config.toml + tmpfiles run the greeter as Debian's _greetd user.
+in_chroot getent passwd _greetd >/dev/null || { echo "!! no _greetd user (fix user= in etc/greetd/config.toml and etc/tmpfiles.d/gemini-tuigreet.conf)"; exit 1; }
+grep -q 'tuigreet' "$R/etc/greetd/config.toml" || { echo "!! greetd config is not the Gemini one (tuigreet)"; exit 1; }
+! in_chroot dpkg -s sddm >/dev/null 2>&1 || { echo "!! sddm got installed"; exit 1; }
+for m in packagechooser contextualprocess; do
+    # (the first-boot Software page and the step that applies it)
+    compgen -G "$R/usr/lib/*/calamares/modules/$m" >/dev/null || { echo "!! Calamares module $m missing"; exit 1; }
+done
+[ -f "$R/etc/skel/.face.icon" ] || { echo "!! default avatar missing"; exit 1; }
 ! in_chroot dpkg -s partitionmanager >/dev/null 2>&1 || { echo "!! partitionmanager got installed"; exit 1; }
 ! in_chroot dpkg -s plasma-welcome >/dev/null 2>&1 || { echo "!! plasma-welcome got installed"; exit 1; }
 [ -f "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume/metadata.json" ] || [ -d "$R/usr/share/plasma/plasmoids/org.kde.plasma.volume" ] || { echo "!! plasma-pa (volume applet) missing"; exit 1; }

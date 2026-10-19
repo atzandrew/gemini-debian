@@ -1,6 +1,7 @@
 # Units disabled by bin/apply-files.sh BEFORE units.enable, when present.
 # Matters for the update bundle on a Gemini that still has them enabled.
-# greetd: replaced by SDDM (2026-10-08); both claim display-manager.service.
-greetd.service
+# SDDM: replaced by greetd + tuigreet again (2026-10-16); both claim
+# display-manager.service. (greetd -> SDDM was 2026-10-08.)
+sddm.service
 # gemini-sleep-gpio: the kernel owns the speaker amps now (2026-10-16).
 gemini-sleep-gpio.service

@@ -29,7 +29,7 @@ cat /sys/class/net/wlan0/address                        # 00:09:34:5a:af:c1 toda
 
 ```sh
 sudo apt update -qq
-for p in sddm sddm-theme-breeze kde-config-sddm gwenview ark zip unzip 7zip unar \
+for p in greetd tuigreet pcmanfm-qt alacritty mpv featherpad imv gwenview ark zip unzip 7zip unar \
          xz-utils bzip2 zstd kwrite okular kcalc haruna vim-tiny htop wget lsof xdg-user-dirs; do
   apt-cache show "$p" >/dev/null 2>&1 || echo "MISSING $p"
 done
@@ -79,12 +79,13 @@ Then unplug from Dragon and power on with Esc/On (docs/flashing.md §3). The
 
 ## 4. First boot
 
-1. SDDM's login screen appears rotated and at 2x, the keyboard types the
-   Gemini layout, touch works. Log in.
+1. The tuigreet login prompt appears on the console (password shown as
+   `*`), the keyboard types the Gemini layout. Log in; Plasma comes up
+   rotated and at 2x, touch works.
 2. `sudo gemini-beta-check | tee ~/beta-check-1.txt` — every line PASS.
    It checks what was once fixed by hand: vsync1 display module, cpufreq on
    all three clusters, thermal zone, A72 workqueue mask, UHID/FUSE, gauge,
-   IR-compensated battery-guard, 2.5 A charger rule, SDDM, apps, the Wi-Fi
+   IR-compensated battery-guard, 2.5 A charger rule, greetd, apps (per software set), the Wi-Fi
    record, and eMMC errors.
 3. **Wi-Fi record:** `sudo gemini-wifi-nvram status` — source `nvdata`, MAC
    = this unit's, not `00:09:34:5a:af:c1`.

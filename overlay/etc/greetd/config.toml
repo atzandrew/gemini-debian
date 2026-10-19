@@ -1,0 +1,22 @@
+# Gemini PDA: greetd + tuigreet login (2026-10-16; replaces SDDM, which
+# replaced greetd on 2026-10-08). tuigreet is a text greeter on tty1, so no
+# compositor runs before login: less RAM and a faster boot than SDDM's KWin
+# greeter. Plasma (Wayland) starts after login.
+#
+#   --asterisks          show a * per typed character (small keyboard)
+#   --remember[-session] last user + session, in /var/cache/tuigreet
+#                        (etc/tmpfiles.d/gemini-tuigreet.conf)
+#   --sessions           Wayland sessions only; --xsessions points at a
+#                        directory that doesn't exist, which hides the
+#                        X11 sessions (no X server in the image)
+#   --cmd                fallback when no session is remembered yet
+#
+# The first-boot image appends an [initial_session] block below (automatic
+# login of the setup account -> Calamares). gemini-first-setup finish
+# removes it again; see firstboot/greetd-initial-session.toml.
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --asterisks --remember --remember-session --sessions /usr/share/wayland-sessions --xsessions /usr/share/gemini/no-x11-sessions --cmd startplasma-wayland"
+user = "_greetd"
