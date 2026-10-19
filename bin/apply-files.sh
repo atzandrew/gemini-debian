@@ -66,11 +66,20 @@ PG="$R/etc/pam.d/greetd"
 if [ -f "$PG" ] && ! grep -q 'pam_kwallet5' "$PG"; then
     if grep -q '^@include common-auth' "$PG" && grep -q '^@include common-session' "$PG"; then
         sed -i -e '/^@include common-auth/a auth    optional    pam_kwallet5.so' \
-               -e '/^@include common-session/a session optional    pam_kwallet5.so auto_start' "$PG"
+               -e '/^@include common-session/a session optional    pam_kwallet5.so auto_start force_run' "$PG"
         echo "apply-files: pam_kwallet5 added to /etc/pam.d/greetd"
     else
         echo "apply-files: warning: /etc/pam.d/greetd has no common-auth/common-session include; KWallet not added" >&2
     fi
+fi
+# Debian's greetd PAM file already has "-session optional pam_kwallet5.so
+# auto_start", but greetd sessions register as tty, so the module logs "not
+# a graphical session, skipping" and never hands over the password (no
+# wallet -> KWallet's first-use wizard, 2026-10-19). force_run skips that
+# test; greetd only runs Plasma (Wayland) sessions here.
+if [ -f "$PG" ] && grep -qE '^-?session.*pam_kwallet5\.so' "$PG" && ! grep -qE '^-?session.*pam_kwallet5\.so.*force_run' "$PG"; then
+    sed -i -E '/^-?session.*pam_kwallet5\.so/ s/$/ force_run/' "$PG"
+    echo "apply-files: pam_kwallet5 session: force_run"
 fi
 
 sc() { if [ -z "$R" ]; then systemctl "$@"; else chroot "$R" systemctl "$@"; fi; }

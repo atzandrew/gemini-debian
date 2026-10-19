@@ -1,0 +1,8 @@
+# Gemini PDA (2026-10-19): never show KWallet's first-use wizard (classic vs
+# GPG). One wallet, "kdewallet", created and unlocked with the login
+# password by pam_kwallet5 (/etc/pam.d/greetd, force_run: bin/apply-files.sh).
+[Wallet]
+First Use=false
+Enabled=true
+Default Wallet=kdewallet
+Use One Wallet=true

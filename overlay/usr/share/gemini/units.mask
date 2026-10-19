@@ -3,3 +3,6 @@
 hibernate.target
 hybrid-sleep.target
 suspend-then-hibernate.target
+# smartmontools (pulled in by Plasma's disk monitor): the eMMC has no SMART,
+# so smartd fails at every boot ("NO devices found to scan").
+smartmontools.service
