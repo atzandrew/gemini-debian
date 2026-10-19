@@ -16,6 +16,10 @@ polkitd
 # (Xwayland comes with kwin-wayland).
 greetd
 tuigreet
+# KWallet unlocks with the login password (2026-10-19): pam_kwallet5.so,
+# added to /etc/pam.d/greetd by bin/apply-files.sh. SDDM's PAM file did
+# this before; greetd's doesn't.
+libpam-kwallet5
 # GL for KWin/Xwayland (replaced by the Gemini Mesa .debs when present)
 libgl1-mesa-dri
 libegl-mesa0

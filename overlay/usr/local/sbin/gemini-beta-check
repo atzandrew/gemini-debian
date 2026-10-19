@@ -59,6 +59,8 @@ echo "== login screen and apps"
 active greetd && pass "greetd running" || fail "greetd running"
 ! systemctl is-enabled --quiet sddm 2>/dev/null && pass "SDDM not enabled" || fail "SDDM not enabled"
 check "tuigreet installed" command -v tuigreet
+check "KWallet unlocks at login (pam_kwallet5 in greetd PAM)" grep -q '^session.*pam_kwallet5.so auto_start' /etc/pam.d/greetd
+check "greeter colour palette applied" systemctl is-active --quiet gemini-console-palette
 ! grep -q '^\[initial_session\]' /etc/greetd/config.toml 2>/dev/null || [ ! -e /var/lib/gemini/setup-done ] \
     && pass "no automatic login after setup" || fail "greetd still logs in automatically (initial_session after setup)"
 # Software set from first-boot setup (gemini-loadout): the light apps are
