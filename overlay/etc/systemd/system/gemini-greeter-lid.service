@@ -1,0 +1,13 @@
+# Power off when the lid stays closed at the login screen
+# (/usr/local/sbin/gemini-greeter-lid).
+[Unit]
+Description=Gemini: power off when the lid stays closed at the login screen
+After=systemd-logind.service
+
+[Service]
+ExecStart=/usr/local/sbin/gemini-greeter-lid
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
