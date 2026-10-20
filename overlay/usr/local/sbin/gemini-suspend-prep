@@ -73,7 +73,15 @@ pre)
 	echo "7 0 0" > /proc/driver/wmt_dbg; echo "7 3 0" > /proc/driver/wmt_dbg
 	sleep 1
 
-	dpms off; sleep 2
+	# DPMS off, re-sent until the display layer stays off: a lock screen
+	# that is still starting (lid shut seconds after unlocking) can light it
+	# again, and a refusal leaves the panel lit under the lid (2026-10-20).
+	t=0
+	while [ $t -lt 5 ]; do
+		t=$((t+1)); dpms off; sleep 2
+		[ "$(l0)" = 0x00000000 ] && break
+	done
+	[ $t -gt 1 ] && log "DPMS off took $t tries (L0 $(l0))"
 	if ! dcs 0x28; then dpms on; conn_on; radios_back; fail "DCS 0x28 failed"; fi
 	if [ "$(l0)" != 0x00000000 ]; then
 		dcs 0x29; dpms on; conn_on; radios_back
