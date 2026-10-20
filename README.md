@@ -95,6 +95,11 @@ The charging screen uses the [Nunito](https://github.com/googlefonts/nunito)
 font (SIL Open Font License 1.1) and [stb](https://github.com/nothings/stb)
 (public domain). First-boot setup uses [Calamares](https://calamares.io).
 
+The image includes proprietary MediaTek firmware taken from the Gemini's
+stock Android (Wi-Fi/Bluetooth firmware and the SPM power-management program
+`mt6797-spm/pcm_suspend.bin` used for suspend). It is redistributed only so
+the hardware works; all rights belong to MediaTek and Planet Computers.
+
 ## For developers
 
 This repo builds the Debian root filesystem; the kernel, device tree and boot

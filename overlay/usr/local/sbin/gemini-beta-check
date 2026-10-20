@@ -42,6 +42,8 @@ check "/dev/fuse" test -c /dev/fuse
 
 echo "== battery and charging"
 check "fuel gauge (mt6351_gauge)" test -d /sys/class/power_supply/mt6351-battery
+check "SPM suspend firmware present" test -f /usr/lib/firmware/mt6797-spm/pcm_suspend.bin
+check "suspend driver loaded (mt6797_suspend)" test -d /sys/module/mt6797_suspend
 G=/usr/local/sbin/battery-guard.sh
 grep -q 'G_R_MOHM' $G 2>/dev/null && pass "battery-guard is the IR-compensated version" || fail "battery-guard is the IR-compensated version"
 active gemini-battery-guard && pass "battery-guard running" || fail "battery-guard running"

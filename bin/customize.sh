@@ -192,5 +192,12 @@ done
 [ ! -e "$R/data/nvram/APCFG/APRDEB/WIFI" ] || { echo "!! the image must not ship a Wi-Fi NVRAM record (one unit's MAC + calibration)"; exit 1; }
 [ -f "$R/usr/share/gemini/wifi/WIFI.template" ] || { echo "!! Wi-Fi NVRAM template missing"; exit 1; }
 [ -x "$R/usr/local/sbin/gemini-wifi-nvram" ] || { echo "!! gemini-wifi-nvram missing"; exit 1; }
+# SPM suspend firmware (2026-10-19): mt6797-suspend loads exactly this blob
+# (MediaTek pcm_suspend_v20 from the Gemini's Android /vendor/firmware, the
+# revision the driver was developed and tested with). Only that revision.
+SPM=$R/usr/lib/firmware/mt6797-spm/pcm_suspend.bin
+[ -f "$SPM" ] || { echo "!! $SPM missing (overlay/usr/lib/firmware/mt6797-spm/; system suspend needs it)"; exit 1; }
+echo "d6e8a0b8851e78e95891c995605ffbf210eade56583b14cf6b4a67e7d770f4e0  $SPM" | sha256sum -c --quiet - \
+    || { echo "!! pcm_suspend.bin is not the tested pcm_suspend_v20 blob"; exit 1; }
 [ -f "$R/usr/lib/firmware/WIFI_RAM_CODE_6797" ] || { echo "!! WIFI_RAM_CODE_6797 missing"; exit 1; }
 echo "    customize: ok"
