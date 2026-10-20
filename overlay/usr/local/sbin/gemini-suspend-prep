@@ -106,7 +106,8 @@ post)
 	dpms on
 	conn_on
 	radios_back
-	log "resumed: panel on, connsys back, cpus $(cat /sys/devices/system/cpu/online)"
+	BAT=/sys/class/power_supply/mt6351-battery
+	log "resumed: panel on, connsys back, cpus $(cat /sys/devices/system/cpu/online); battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
 	;;
 *)	echo "usage: $0 pre|post" >&2; exit 2 ;;
 esac
