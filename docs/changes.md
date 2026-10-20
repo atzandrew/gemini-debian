@@ -52,7 +52,11 @@ on top of cjdell's work (kernel source changes live in
   `gemini-suspend-prep.service`.
   Since 2026-10-18 the A72 CPU rail (VPROC2) drops to 0.3 V while suspended
   ([dc1fd99](https://github.com/atzandrew/gemini-nixos/commit/dc1fd99)): about
-  208 mA.
+  208 mA (measured in 30 s test runs only).
+  **Known issue (2026-10-20):** suspends of about 10 minutes or more hang and
+  need a long power-button hold; short ones are fine. Idle auto-suspend is off
+  for that reason. Details: gemini-nixos `docs/spm-sleep.md` and
+  `docs/stock-suspend-mt6797.md`.
   Since 2026-10-19 a suspend refuses to start while the display is still on
   ([3bc40af](https://github.com/atzandrew/gemini-nixos/commit/3bc40af)). At the login screen the lid
   no longer suspends: `gemini-greeter-lid` powers off when it stays shut for
