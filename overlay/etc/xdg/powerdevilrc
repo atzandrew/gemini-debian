@@ -1,0 +1,13 @@
+# Gemini: no automatic suspend when idle (2026-10-20). The SPM suspend still
+# hangs at random (about one hang per ~17 min asleep with 2 s wake cycles),
+# so an unattended idle suspend would often end in a hang and a drained
+# battery. Suspend by the lid or the silver key only. 0 = no action.
+# Remove once the hang is fixed (gemini-nixos docs/spm-sleep.md).
+[AC][SuspendAndShutdown]
+AutoSuspendAction=0
+
+[Battery][SuspendAndShutdown]
+AutoSuspendAction=0
+
+[LowBattery][SuspendAndShutdown]
+AutoSuspendAction=0
