@@ -9,13 +9,16 @@
 #   - A72s (cpu8/9) offline for good: CPU_ON(8) hangs after SPM sleep. Unbound
 #     workqueues move to cpu0-7.
 #   - Connsys (Wi-Fi/BT) off, so the 26 MHz clock can stop; put back after.
-#   - Panel: DPMS off, then DSI DCS 0x28 (display off) — never 0x10 — and
-#     0x29 after. Without it the LCD ghosts when the SPM stops the clocks.
+#   - Panel: DPMS off here. The kernel powers the panel itself down and up
+#     (geminipda-drm panel_suspend=1: the stock off/on sequence, bias off in
+#     sleep, 2026-10-21), and mt6797-suspend refuses to sleep while the LCD
+#     bias is still on (bias_check). The DCS 0x28/0x29 this script used to
+#     send are gone: the driver does the full sequence.
 #   - Touch: reset + re-init after resume (driver rebind), else ghost touches
 #     after the lid was shut.
 # Refuses (= no suspend) when: the module isn't loaded, external power is in
-# (SPM suspend untested there), DSI isn't in the state LK left, or the display
-# layer is still on (e.g. at the login screen, where DPMS can't be set). The
+# (SPM suspend untested there), the kernel's panel power-off isn't active
+# (geminipda_drm panel_suspend), or the display layer is still on (e.g. at the login screen, where DPMS can't be set). The
 # module checks the display layer again with all tasks frozen (disp_check), in
 # case a compositor re-lit it after this script (2026-10-18 overnight drain).
 set -u
@@ -24,17 +27,8 @@ mkdir -p "$S"
 log() { echo "$*"; }
 fail() { log "refusing suspend: $*"; exit 1; }
 
-B=0x1401c000		# DSI0
-rd() { busybox devmem $(($B + $1)) 32; }
-wr() { busybox devmem $(($B + $1)) 32 $2; }
-dcs() {	# DCS short, no param, via VM_CMD in video mode (gemini-nixos bin/sleep-tests/dcs.sh)
-	st=$(rd 0x0c); wr 0x0c $(( st & ~0x20 )); wr 0x130 $(( ($1 << 16) | (0x05 << 8) | 0x21 ))
-	s=$(rd 0x00); wr 0x00 $(( s & ~0x10000 )); wr 0x00 $(( s | 0x10000 ))
-	i=0; while [ $(( $(rd 0x0c) & 0x20 )) -eq 0 ]; do i=$((i+1)); [ $i -gt 200 ] && { log "dcs $1: no VM_CMD_DONE"; return 1; }; done
-	st=$(rd 0x0c); wr 0x0c $(( st & ~0x20 ))
-}
 l0() { busybox devmem 0x1400b02c 32; }	# OVL0 layer 0 enable
-dsi_ok() { [ "$(rd 0x14)" = 0x00000001 ] && [ $(( $(rd 0x130) & 0xff )) -eq $((0x21)) ]; }
+PP=/sys/module/geminipda_drm/parameters
 dpms() {	# every active session that runs a Wayland compositor
 	# (by its socket, not logind's Type: a Plasma started from greetd's
 	# tuigreet or initial_session can be registered as Type=tty)
@@ -61,7 +55,8 @@ pre)
 	[ -d /sys/module/mt6797_suspend ] || fail "mt6797-suspend module not loaded"
 	grep -q '\[deep\]' /sys/power/mem_sleep || fail "mem_sleep is not deep: $(cat /sys/power/mem_sleep)"
 	[ "$(cat /sys/class/power_supply/bq25890-charger-0/online 2>/dev/null)" = 0 ] || fail "on external power"
-	dsi_ok || fail "DSI not in the expected video mode"
+	[ "$(cat $PP/panel_suspend 2>/dev/null)" = Y ] || fail "kernel panel power-off not active (geminipda_drm panel_suspend)"
+	[ "$(cat $PP/panel 2>/dev/null)" = on ] || fail "panel-pm state is '$(cat $PP/panel 2>/dev/null)', not on"
 
 	echo ff > /sys/devices/virtual/workqueue/cpumask
 	for c in 9 8; do echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null; done
@@ -82,19 +77,17 @@ pre)
 		[ "$(l0)" = 0x00000000 ] && break
 	done
 	[ $t -gt 1 ] && log "DPMS off took $t tries (L0 $(l0))"
-	if ! dcs 0x28; then dpms on; conn_on; radios_back; fail "DCS 0x28 failed"; fi
 	if [ "$(l0)" != 0x00000000 ]; then
-		dcs 0x29; dpms on; conn_on; radios_back
+		dpms on; conn_on; radios_back
 		fail "display layer still on (L0 $(l0); login screen?)"
 	fi
 	touch $S/active
 	BAT=/sys/class/power_supply/mt6351-battery
-	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), panel display-off; battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
+	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), display off; battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
 	;;
 post)
 	[ -e $S/active ] || exit 0
 	rm -f $S/active
-	dcs 0x29 || log "DCS 0x29 failed"
 	# Touch (SSD2092): its firmware keeps running through suspend and
 	# recalibrates against the keyboard when the lid is shut -> ghost touches
 	# after opening. Rebind = the probe's reset + init (fresh baseline).
