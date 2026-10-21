@@ -61,6 +61,15 @@ on top of cjdell's work (kernel source changes live in
   ([3bc40af](https://github.com/atzandrew/gemini-nixos/commit/3bc40af)). At the login screen the lid
   no longer suspends: `gemini-greeter-lid` powers off when it stays shut for
   2.5 minutes.
+  **Panel off in sleep (2026-10-21):** the display driver now powers the panel
+  down in every suspend with the stock vendor sequence (display off, sleep-in,
+  reset, LCD bias off) and runs the full stock init on resume, about 0.85 s
+  (`panel_suspend=1`, [docs/display.md](https://github.com/atzandrew/gemini-nixos/blob/main/docs/display.md)
+  "Panel off/on"). It fails safe: any error leaves the panel off and dark.
+  `mt6797-suspend` refuses to sleep while the bias is on, and its PCM watchdog
+  (`pcm_wdt=30`) turns a hung sleep into a reset after about 30 s. Before this
+  the panel stayed biased through every sleep, which burned the screen 6 times.
+  The random hang in long suspends is still open.
 - **Charging screen:** the initrd recognises the bootloader's off-mode-charging
   boot and shows a battery screen (`devices/planet-geminipda/charger.sh`,
   `charger-ui/`). The kernel stays quiet until that decision.
