@@ -16,6 +16,11 @@
 #     send are gone: the driver does the full sequence.
 #   - Touch: reset + re-init after resume (driver rebind), else ghost touches
 #     after the lid was shut.
+#   - USB port power off while asleep (~15 mA, gemini-nixos docs/spm-sleep.md
+#     "Off-SoC split"): GPIO 94 usb1-drvvbus, 72 sw7226-en, 70 fusb301a-sw-en,
+#     107 otg-drvvbus go low (the stock default; our DT hogs them high), and
+#     back to what they were after. Devices on the ports lose power in sleep.
+#     A/B: touch $S/usb-keep to leave them as they are.
 # Refuses (= no suspend) when: the module isn't loaded, external power is in
 # (SPM suspend untested there), the kernel's panel power-off isn't active
 # (geminipda_drm panel_suspend), or the display layer is still on (e.g. at the login screen, where DPMS can't be set). The
@@ -44,6 +49,22 @@ dpms() {	# every active session that runs a Wayland compositor
 conn_on() {
 	echo "7 3 1" > /proc/driver/wmt_dbg
 	echo 0 > /sys/module/mtk_wcn/parameters/conn_pwr_off
+}
+# USB pins: DOUT 0x10005120 (GPIO 64-95) bits 30/8/6, 0x10005130 (GPIO 96-127)
+# bit 11. Written through the SET (+4) / CLR (+8) registers, so other pins in
+# those words are never touched. Only bits that were high are set again.
+U1=0x10005120; M1=$(( (1<<30)|(1<<8)|(1<<6) ))
+U2=0x10005130; M2=$(( 1<<11 ))
+usb_off() {
+	[ -e $S/usb-keep ] && { log "usb-keep: USB power left on"; return; }
+	h1=$(( $(busybox devmem $U1 32) & M1 )); h2=$(( $(busybox devmem $U2 32) & M2 ))
+	echo "$h1 $h2" > $S/usb
+	busybox devmem $((U1+8)) 32 $h1; busybox devmem $((U2+8)) 32 $h2
+}
+usb_on() {
+	[ -e $S/usb ] || return 0
+	read h1 h2 < $S/usb; rm -f $S/usb
+	busybox devmem $((U1+4)) 32 $h1; busybox devmem $((U2+4)) 32 $h2
 }
 radios_back() {
 	[ "$(cat $S/wifi 2>/dev/null)" = disabled ] || nmcli radio wifi on
@@ -81,13 +102,15 @@ pre)
 		dpms on; conn_on; radios_back
 		fail "display layer still on (L0 $(l0); login screen?)"
 	fi
+	usb_off
 	touch $S/active
 	BAT=/sys/class/power_supply/mt6351-battery
-	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), display off; battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
+	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), display off, usb $([ -e $S/usb ] && echo off || echo on); battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
 	;;
 post)
 	[ -e $S/active ] || exit 0
 	rm -f $S/active
+	usb_on
 	# Touch (SSD2092): its firmware keeps running through suspend and
 	# recalibrates against the keyboard when the lid is shut -> ghost touches
 	# after opening. Rebind = the probe's reset + init (fresh baseline).
