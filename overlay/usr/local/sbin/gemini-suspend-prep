@@ -21,6 +21,11 @@
 #     107 otg-drvvbus go low (the stock default; our DT hogs them high), and
 #     back to what they were after. Devices on the ports lose power in sleep.
 #     A/B: touch $S/usb-keep to leave them as they are.
+#   - Test flag $HOLD (survives reboots): connsys is not switched back on after
+#     resume, so later sleeps run with connsys still off and no power cycle
+#     (sleep-hang test, 2026-10-22). Wi-Fi/BT stay off until the flag is
+#     removed; the next resume then brings them back. A reboot powers connsys
+#     on again, so the first sleep after boot still switches it off once.
 # Refuses (= no suspend) when: the module isn't loaded, external power is in
 # (SPM suspend untested there), the kernel's panel power-off isn't active
 # (geminipda_drm panel_suspend), or the display layer is still on (e.g. at the login screen, where DPMS can't be set). The
@@ -28,6 +33,7 @@
 # case a compositor re-lit it after this script (2026-10-18 overnight drain).
 set -u
 S=/run/gemini-suspend
+HOLD=/var/lib/gemini-suspend/conn-hold
 mkdir -p "$S"
 log() { echo "$*"; }
 fail() { log "refusing suspend: $*"; exit 1; }
@@ -82,12 +88,18 @@ pre)
 	echo ff > /sys/devices/virtual/workqueue/cpumask
 	for c in 9 8; do echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null; done
 
-	nmcli radio wifi > $S/wifi
-	timeout 5 bluetoothctl show 2>/dev/null | grep -q "Powered: yes" && echo yes > $S/bt || echo no > $S/bt
-	nmcli radio wifi off; timeout 5 bluetoothctl power off >/dev/null 2>&1; sleep 2
-	echo 1 > /sys/module/mtk_wcn/parameters/conn_pwr_off
-	echo "7 0 0" > /proc/driver/wmt_dbg; echo "7 3 0" > /proc/driver/wmt_dbg
-	sleep 1
+	if [ -e $S/conn-held ]; then
+		conn="connsys still off (held, no power cycle)"
+	else
+		nmcli radio wifi > $S/wifi
+		timeout 5 bluetoothctl show 2>/dev/null | grep -q "Powered: yes" && echo yes > $S/bt || echo no > $S/bt
+		nmcli radio wifi off; timeout 5 bluetoothctl power off >/dev/null 2>&1; sleep 2
+		echo 1 > /sys/module/mtk_wcn/parameters/conn_pwr_off
+		echo "7 0 0" > /proc/driver/wmt_dbg; echo "7 3 0" > /proc/driver/wmt_dbg
+		sleep 1
+		conn="connsys off"
+		[ -e $HOLD ] && conn="connsys off (first off this boot, hold set)"
+	fi
 
 	# DPMS off, re-sent until the display layer stays off: a lock screen
 	# that is still starting (lid shut seconds after unlocking) can light it
@@ -99,13 +111,14 @@ pre)
 	done
 	[ $t -gt 1 ] && log "DPMS off took $t tries (L0 $(l0))"
 	if [ "$(l0)" != 0x00000000 ]; then
-		dpms on; conn_on; radios_back
+		dpms on
+		[ -e $S/conn-held ] || { conn_on; radios_back; }
 		fail "display layer still on (L0 $(l0); login screen?)"
 	fi
 	usb_off
 	touch $S/active
 	BAT=/sys/class/power_supply/mt6351-battery
-	log "ready: A72s off, connsys off (wifi was $(cat $S/wifi), bt $(cat $S/bt)), display off, usb $([ -e $S/usb ] && echo off || echo on); battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
+	log "ready: A72s off, $conn (wifi was $(cat $S/wifi), bt $(cat $S/bt)), display off, usb $([ -e $S/usb ] && echo off || echo on); battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
 	;;
 post)
 	[ -e $S/active ] || exit 0
@@ -120,10 +133,13 @@ post)
 		echo 4-0053 > /sys/bus/i2c/drivers/ssd2092/bind || log "touch rebind failed"
 	fi
 	dpms on
-	conn_on
-	radios_back
+	if [ -e $HOLD ]; then
+		touch $S/conn-held; conn="connsys held off ($HOLD)"
+	else
+		rm -f $S/conn-held; conn_on; radios_back; conn="connsys back"
+	fi
 	BAT=/sys/class/power_supply/mt6351-battery
-	log "resumed: panel on, connsys back, cpus $(cat /sys/devices/system/cpu/online); battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
+	log "resumed: panel on, $conn, cpus $(cat /sys/devices/system/cpu/online); battery $(cat $BAT/capacity 2>/dev/null)% $(cat $BAT/charge_now 2>/dev/null) uAh"
 	;;
 *)	echo "usage: $0 pre|post" >&2; exit 2 ;;
 esac
