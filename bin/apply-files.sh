@@ -23,8 +23,7 @@ while IFS= read -r -d '' f; do
 done < <(cd "$FILES" && find . -type f -print0)
 echo "apply-files: $n files installed"
 
-chmod 755 "$R"/usr/local/sbin/*
-[ ! -d "$R/usr/local/bin" ] || chmod 755 "$R"/usr/local/bin/*
+for f in "$R"/usr/local/sbin/* "$R"/usr/local/bin/*; do [ ! -f "$f" ] || chmod 755 "$f"; done
 chmod 600 "$R"/etc/NetworkManager/system-connections/*.nmconnection
 # sudoers drop-ins: sudo wants 0440
 for f in "$R"/etc/sudoers.d/gemini-*; do [ ! -e "$f" ] || chmod 440 "$f"; done
