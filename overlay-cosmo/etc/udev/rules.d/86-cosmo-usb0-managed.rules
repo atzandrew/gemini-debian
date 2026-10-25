@@ -1,0 +1,4 @@
+# NetworkManager leaves USB gadget interfaces unmanaged by default
+# (85-nm-unmanaged.rules: DEVTYPE=gadget). The Cosmo's g_ether usb0 is the
+# link to the host, configured by NetworkManager (usb0.nmconnection).
+SUBSYSTEM=="net", ENV{DEVTYPE}=="gadget", ENV{NM_UNMANAGED}="0"

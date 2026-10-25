@@ -1,9 +1,11 @@
 [Unit]
-Description=Confirm a good boot to the Cosmo initramfs (clears its tripwire)
-After=multi-user.target ssh.service NetworkManager.service
+Description=Confirm a good, reachable boot to the Cosmo initramfs (clears its tripwire)
+After=NetworkManager.service ssh.service
+Wants=NetworkManager.service
 
 [Service]
 Type=oneshot
+TimeoutStartSec=120
 ExecStart=/usr/local/sbin/cosmo-boot-ok
 
 [Install]
