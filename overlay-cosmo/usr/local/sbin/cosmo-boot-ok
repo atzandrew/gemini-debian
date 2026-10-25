@@ -1,0 +1,10 @@
+#!/bin/sh
+# Tell the Cosmo initramfs that this root system came up: overwrite its
+# tripwire flag (8 MiB into the raw `cache` partition) with COSMO-OK. If a
+# boot never gets here, the next boot stays in the rescue initramfs.
+set -e
+dev=/dev/disk/by-partlabel/cache
+[ -b "$dev" ] || { echo "cosmo-boot-ok: no $dev" >&2; exit 1; }
+printf 'COSMO-OK\0' | dd of="$dev" bs=512 seek=16384 count=1 conv=sync,notrunc status=none
+sync
+echo "cosmo-boot-ok: boot confirmed"

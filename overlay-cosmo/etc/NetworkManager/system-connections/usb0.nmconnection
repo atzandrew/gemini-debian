@@ -1,0 +1,18 @@
+# USB network link to the host (g_ether gadget, built into the Cosmo kernel).
+# Shared mode: the Cosmo is @USB_ADDR@ and hands the host an address by DHCP,
+# like the rescue initramfs. Low priority default route so Wi-Fi wins later.
+[connection]
+id=usb0
+type=ethernet
+interface-name=usb0
+autoconnect=true
+
+[ethernet]
+
+[ipv4]
+method=shared
+address1=@USB_ADDR@
+route-metric=1000
+
+[ipv6]
+method=disabled

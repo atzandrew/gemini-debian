@@ -1,0 +1,4 @@
+# Files the Cosmo image takes from the Gemini overlay/ unchanged (paths
+# relative to overlay/). Everything Cosmo-specific is in overlay-cosmo/.
+usr/local/sbin/gemini-growfs
+etc/systemd/system/gemini-growfs.service
