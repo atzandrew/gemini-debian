@@ -23,11 +23,15 @@ source ./config.env
 die() { echo "!! $*" >&2; exit 1; }
 
 [ "$(id -u)" -ne 0 ] || die "run as your normal user, not root (sudo is used only for podman)"
-command -v nix >/dev/null    || die "nix not found"
+[ "$DEVICE" != gemini ] || command -v nix >/dev/null || die "nix not found"
+case "$DEVICE" in gemini) ;; cosmo) [ "${DEVICE_LOADED:-}" = cosmo ] || die "devices/cosmo.env not loaded" ;;
+    *) die "unknown DEVICE=$DEVICE (gemini or cosmo)" ;; esac
 command -v podman >/dev/null || die "podman not found — install it with: sudo dnf install podman"
 command -v openssl >/dev/null || die "openssl not found"
 
-NIXOS=$(cd "$HERE" && cd "$GEMINI_NIXOS_DIR" && pwd) || die "gemini-nixos not found at $GEMINI_NIXOS_DIR"
+if [ "$DEVICE" = gemini ]; then
+    NIXOS=$(cd "$HERE" && cd "$GEMINI_NIXOS_DIR" && pwd) || die "gemini-nixos not found at $GEMINI_NIXOS_DIR"
+fi
 STAGE=$HERE/build/stage
 
 # Previous runs leave read-only Nix copies behind; make them deletable.
@@ -38,6 +42,49 @@ if [ -d build ]; then
 fi
 mkdir -p "$STAGE" out
 
+# Cosmo: kernel modules from cosmo-linux618 (out/modroot), files tree from
+# overlay-cosmo/ plus the generic Gemini files named in devices/cosmo.common.
+stage_cosmo() {
+    local K MODS f krev drev
+    K=$(cd "$HERE" && cd "$COSMO_KERNEL_DIR" && pwd) || die "cosmo-linux618 not found at $COSMO_KERNEL_DIR"
+    echo "==> 1/3 kernel modules from $K"
+    MODS=$K/out/modroot/lib/modules
+    [ -d "$MODS/$EXPECT_KVER/kernel" ] || die "no $MODS/$EXPECT_KVER (run bin/build-kernel.sh in $K)"
+    KVER=$EXPECT_KVER
+    mkdir -p "$STAGE/modules" "$STAGE/firmware"
+    cp -r "$MODS/$KVER" "$STAGE/modules/"
+    echo "$KVER" > "$STAGE/kver"
+    krev=$(git -C "$K" rev-parse --short HEAD 2>/dev/null || echo "?")
+    [ -z "$(git -C "$K" status --porcelain --untracked-files=no 2>/dev/null)" ] || krev="$krev +uncommitted changes"
+    drev=$(git -C "$HERE" rev-parse --short HEAD 2>/dev/null || echo "?")
+    [ -z "$(git -C "$HERE" status --porcelain --untracked-files=no -- bin config.env devices overlay-cosmo packages 2>/dev/null)" ] || drev="$drev +uncommitted changes"
+    {
+        echo "built: $(date -Is) on $(hostname)"
+        echo "device: cosmo"
+        echo "cosmo-linux618: $krev"
+        echo "gemini-debian: $drev"
+        echo "kernel: $KVER"
+        echo "suite: $DEBIAN_SUITE"
+    } > "$STAGE/build-info"
+    echo "    kernel: $KVER, modules: $(du -sh "$STAGE/modules" | cut -f1)"
+    F=$STAGE/files
+    mkdir -p "$F"
+    while read -r f; do
+        f=${f%%#*}; f=$(echo $f)
+        [ -n "$f" ] || continue
+        [ -f "overlay/$f" ] || die "devices/cosmo.common: overlay/$f missing"
+        install -D -m 644 "overlay/$f" "$F/$f"
+    done < devices/cosmo.common
+    cp -r overlay-cosmo/. "$F/"
+    sed -i "s|@USB_ADDR@|$USB_ADDR|" "$F/etc/NetworkManager/system-connections/usb0.nmconnection"
+    install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
+    rm -rf "$STAGE/firstboot" && mkdir -p "$STAGE/firstboot"
+    echo "    files tree: $(find "$F" -type f | wc -l) files"
+}
+
+if [ "$DEVICE" = cosmo ]; then
+stage_cosmo
+else
 echo "==> 1/3 kernel modules + firmware from $NIXOS"
 SYS=$(cd "$NIXOS" && nix build .#packages.aarch64-linux.toplevel --print-out-paths --no-link)
 echo "    system: $SYS"
@@ -167,6 +214,7 @@ grep -rl '@GEMINI_USER@' "$F" | xargs -r sed -i "s/@GEMINI_USER@/$GEMINI_USER/g"
 rm -rf "$STAGE/firstboot" && cp -r firstboot "$STAGE/firstboot"
 sed -i "s/@GEMINI_USER@/$GEMINI_USER/g" "$STAGE"/firstboot/*
 echo "    files tree: $(find "$F" -type f | wc -l) files"
+fi # DEVICE
 
 echo "==> 2/3 login"
 : > "$STAGE/authorized_keys"
@@ -190,12 +238,16 @@ chmod 600 "$STAGE/password-hash"
 
 echo "==> 3/3 Debian $DEBIAN_SUITE rootfs (container; sudo for podman)"
 sudo podman run --rm --privileged --security-opt label=disable \
-    -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+    -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" -e DEVICE="$DEVICE" \
     -v "$HERE:/work" \
     docker.io/library/debian:trixie \
     bash /work/bin/in-container.sh
 
 echo
 echo "==> done:"
-ls -lh out/gemini-debian-rootfs.img out/gemini-update.tar.gz
+if [ "$DEVICE" = gemini ]; then
+    ls -lh out/gemini-debian-rootfs.img out/gemini-update.tar.gz
+else
+    ls -lh "out/$IMAGE_NAME"
+fi
 echo "Full flash: docs/flashing.md    Update a running Gemini: docs/updating.md"

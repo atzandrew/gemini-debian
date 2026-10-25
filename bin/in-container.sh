@@ -5,14 +5,14 @@ set -euo pipefail
 source /work/config.env
 
 ROOTFS=/rootfs
-IMG=/work/out/gemini-debian-rootfs.img
+IMG=/work/out/${IMAGE_NAME:-gemini-debian-rootfs.img}
 
 echo "    installing build tools"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
     mmdebstrap e2fsprogs ca-certificates libcap2-bin attr >/dev/null
 
-INCLUDE=$(sed -e 's/#.*//' /work/packages/base.list | xargs | tr ' ' ',')
+INCLUDE=$(for l in ${PACKAGE_LISTS:-base.list}; do sed -e 's/#.*//' "/work/packages/$l"; done | xargs | tr ' ' ',')
 COMP="main contrib non-free non-free-firmware"
 
 rm -rf "$ROOTFS"
@@ -28,7 +28,7 @@ echo "    packing ext4 image ($IMAGE_SIZE)"
 rm -f "$IMG"
 # no_copy_xattrs: don't carry host SELinux labels into the image (the same
 # Asahi problem gemini-nixos fixed in pkgs/make-ext4fs-shim.nix).
-mke2fs -q -t ext4 -L gemini-debian -E no_copy_xattrs -d "$ROOTFS" "$IMG" "$IMAGE_SIZE"
+mke2fs -q -t ext4 -L "${IMAGE_LABEL:-gemini-debian}" -E no_copy_xattrs -d "$ROOTFS" "$IMG" "$IMAGE_SIZE"
 # no_copy_xattrs also drops security.capability (ping lost cap_net_raw,
 # 2026-10-03). Put the file capabilities back one by one with debugfs.
 CAPTMP=$(mktemp)
@@ -40,6 +40,12 @@ done
 rm -f "$CAPTMP"
 e2fsck -fn "$IMG" >/dev/null
 echo "    used: $(du -sh --apparent-size "$ROOTFS" | cut -f1) of $IMAGE_SIZE"
+
+if [ "$DEVICE" != gemini ]; then
+    # The update bundle is Gemini-only (its files tree and .debs).
+    chown -R "$HOST_UID:$HOST_GID" "$IMG" /work/build
+    exit 0
+fi
 
 echo "    packing update bundle"
 # Everything a running Gemini needs to catch up with this image, offline:

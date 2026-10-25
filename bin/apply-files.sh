@@ -27,7 +27,7 @@ chmod 755 "$R"/usr/local/sbin/*
 [ ! -d "$R/usr/local/bin" ] || chmod 755 "$R"/usr/local/bin/*
 chmod 600 "$R"/etc/NetworkManager/system-connections/*.nmconnection
 # sudoers drop-ins: sudo wants 0440
-chmod 440 "$R"/etc/sudoers.d/gemini-*
+for f in "$R"/etc/sudoers.d/gemini-*; do [ ! -e "$f" ] || chmod 440 "$f"; done
 
 # Bluetooth: Privacy=off. bluetoothd's boot-time auto power-on runs
 # set-privacy, which the MT6630 rejects, leaving hci0 unpowered
@@ -88,12 +88,14 @@ list() { [ -f "$R/usr/share/gemini/$1" ] || return 0; sed -e 's/#.*//' "$R/usr/s
 # Replaced units first (e.g. sddm, which also claims display-manager.service);
 # a unit that isn't installed is fine.
 for u in $(list units.disable); do sc disable "$u" >/dev/null 2>&1 || :; done
-# shellcheck disable=SC2046
-sc enable $(list units.enable)
+u=$(list units.enable)
+# shellcheck disable=SC2086
+[ -z "$u" ] || sc enable $u
 # Masked by an older release but wanted now (mask below wins if listed in both).
 for u in $(list units.unmask); do sc unmask "$u" >/dev/null 2>&1 || :; done
-# shellcheck disable=SC2046
-sc mask $(list units.mask)
+u=$(list units.mask)
+# shellcheck disable=SC2086
+[ -z "$u" ] || sc mask $u
 # Per-user units for every user (systemctl --global).
 u=$(list units.user.disable)
 # shellcheck disable=SC2086

@@ -19,7 +19,9 @@ in_chroot depmod -a "$KVER"
 # Installed here from the part-2 baseline so the exact .debs it needed
 # (packages + any missing dependencies) can also go into the update bundle
 # for a running Gemini with no network.
-EXTRA=$(sed -e 's/#.*//' /work/packages/extra.list | xargs)
+# Gemini only: the Cosmo image is headless for now (devices/cosmo.env).
+EXTRA=
+[ "$DEVICE" != gemini ] || EXTRA=$(sed -e 's/#.*//' /work/packages/extra.list | xargs)
 mkdir -p "$B/debs"
 if [ -n "$EXTRA" ]; then
     echo "    customize: extra packages: $EXTRA"
@@ -65,7 +67,7 @@ if [ -n "$EXTRA" ]; then
 fi
 
 # ---- Gemini Mesa (optional: present after bin/build-mesa.sh) -------------
-if compgen -G "/work/out/mesa/*.deb" >/dev/null; then
+if [ "$DEVICE" = gemini ] && compgen -G "/work/out/mesa/*.deb" >/dev/null; then
     echo "    customize: Gemini Mesa ($(ls /work/out/mesa/*.deb | wc -l) debs built)"
     mkdir -p "$R/tmp/gemini-mesa"
     cp /work/out/mesa/*.deb /work/bin/mesa-upgrade.sh "$R/tmp/gemini-mesa/"
@@ -93,9 +95,16 @@ echo "    customize: fstab"
 # The boot image's initrd rewrites the first field of the "/" line to the
 # partition it actually mounted (mmcblk0 vs mmcblk1 varies), so the device
 # name here is only a placeholder. Keep the "<dev> / " shape.
+if [ "$DEVICE" = cosmo ]; then
+# Cosmo: the initramfs mounts userdata itself; name it by GPT label.
+cat > "$R/etc/fstab" <<'EOF'
+PARTLABEL=userdata / ext4 defaults,noatime,errors=remount-ro 0 1
+EOF
+else
 cat > "$R/etc/fstab" <<'EOF'
 /dev/mmcblk0p29 / ext4 defaults,noatime,errors=remount-ro 0 1
 EOF
+fi
 
 echo "    customize: user $GEMINI_USER"
 in_chroot useradd -m -s /bin/bash "$GEMINI_USER"
@@ -119,7 +128,9 @@ fi
 # Default avatar for new accounts (~/.face.icon; gemini-first-setup finish
 # also sets it in AccountsService). A real file, not a link: Plasma replaces
 # it when the user picks another picture.
-install -m 644 "$R/usr/share/plasma/avatars/gemini-astronaut-render.png" "$R/etc/skel/.face.icon"
+if [ "$DEVICE" = gemini ]; then
+    install -m 644 "$R/usr/share/plasma/avatars/gemini-astronaut-render.png" "$R/etc/skel/.face.icon"
+fi
 
 echo "    customize: base services"
 in_chroot systemctl enable ssh.service NetworkManager.service systemd-timesyncd.service
@@ -141,6 +152,23 @@ fix_rel /etc/os-release ../usr/lib/os-release
 [ -x "$R/usr/sbin/init" ] || { echo "!! /usr/sbin/init missing (systemd-sysv)"; exit 1; }
 [ -f "$R/etc/os-release" ] || { echo "!! /etc/os-release missing"; exit 1; }
 [ -d "$R/usr/lib/modules/$KVER/kernel" ] || { echo "!! modules not installed"; exit 1; }
+if [ "$DEVICE" = cosmo ]; then
+    for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr/share /var /home; do
+        m=$(stat -c %a "$R$d"); [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
+    done
+    for t in sshd nmcli dnsmasq resize2fs; do
+        in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing"; exit 1; }
+    done
+    for u in ssh.service NetworkManager.service cosmo-boot-ok.service gemini-growfs.service; do
+        in_chroot systemctl is-enabled "$u" >/dev/null 2>&1 || { echo "!! $u not enabled"; exit 1; }
+    done
+    grep -qx "RuntimeWatchdogSec=30s" "$R/etc/systemd/system.conf.d/cosmo-watchdog.conf" || { echo "!! systemd watchdog (timer failsafe) not configured"; exit 1; }
+    grep -qx "method=shared" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 not in shared mode"; exit 1; }
+    grep -q "PARTLABEL=userdata / " "$R/etc/fstab" || { echo "!! fstab root is not PARTLABEL=userdata"; exit 1; }
+    [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
+    echo "    customize: ok (cosmo)"
+    exit 0
+fi
 [ -f "$R/usr/lib/modules/$KVER/extra/mt6351-gauge.ko" ] || { echo "!! mt6351-gauge.ko missing (fuel gauge)"; exit 1; }
 in_chroot modinfo -k "$KVER" -n mt6351_gauge >/dev/null 2>&1 || { echo "!! mt6351_gauge not in modules.dep"; exit 1; }
 in_chroot modinfo -k "$KVER" -n mt6797_suspend >/dev/null 2>&1 || { echo "!! mt6797_suspend not in modules.dep (system suspend)"; exit 1; }

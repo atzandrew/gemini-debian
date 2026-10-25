@@ -1,0 +1,3 @@
+# Cosmo additions to base.list (headless).
+# NetworkManager shared mode on usb0 (DHCP for the host) needs dnsmasq.
+dnsmasq-base
