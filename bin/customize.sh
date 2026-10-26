@@ -165,6 +165,9 @@ if [ "$DEVICE" = cosmo ]; then
     grep -qx "RuntimeWatchdogSec=30s" "$R/etc/systemd/system.conf.d/cosmo-watchdog.conf" || { echo "!! systemd watchdog (timer failsafe) not configured"; exit 1; }
     grep -qx "method=shared" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 not in shared mode"; exit 1; }
     grep -q "PARTLABEL=userdata / " "$R/etc/fstab" || { echo "!! fstab root is not PARTLABEL=userdata"; exit 1; }
+    [ -f "$R/usr/share/X11/xkb/symbols/cosmo" ] || { echo "!! cosmo xkb symbols missing"; exit 1; }
+    grep -qx "XKBLAYOUT=\"cosmo\"" "$R/etc/default/keyboard" || { echo "!! keyboard layout is not cosmo"; exit 1; }
+    in_chroot sh -c "command -v setupcon" >/dev/null || { echo "!! console-setup missing"; exit 1; }
     [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
     echo "    customize: ok (cosmo)"
     exit 0
