@@ -1,0 +1,7 @@
+# Cosmo built-in keyboard: layout "cosmo" (usr/share/X11/xkb/symbols/cosmo),
+# US silkscreen variant. console-setup builds the console keymap from it.
+XKBMODEL="pc105"
+XKBLAYOUT="cosmo"
+XKBVARIANT="us"
+XKBOPTIONS=""
+BACKSPACE="guess"
