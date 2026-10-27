@@ -5,11 +5,15 @@
 # drivers this copies, read-only (debugfs without -w, nothing mounted):
 #   - Wi-Fi/WMT firmware from this unit's Android "vendor" partition
 #     (/firmware/...) into /lib/firmware, if missing;
-#   - this unit's Wi-Fi NVRAM record (MAC + TX calibration) from "nvdata"
-#     (/APCFG/APRDEB/WIFI, WIFI_CUSTOM) into /mnt/vendor/nvdata, where the
-#     stock gen3 driver reads it, if missing.
-# Then loads btif -> wmt_drv -> wmt_chrdev_wifi -> wlan_drv_gen3 and powers
-# Wi-Fi on (echo 1 > /dev/wmtWifi). NetworkManager picks wlan0 up via udev.
+#   - this unit's Wi-Fi NVRAM record (MAC, 5 GHz enable, TX calibration)
+#     from "nvdata" (/APCFG/APRDEB/WIFI, WIFI_CUSTOM) into /mnt/vendor/nvdata,
+#     if missing.
+# Then loads btif -> wmt_drv -> wmt_chrdev_wifi -> wlan_drv_gen3, hands the
+# NVRAM record to the driver as stock userspace does ("WR-BUF:NVRAM" + the
+# 1024-byte record in one write to /dev/wmtWifi), and powers Wi-Fi on
+# (echo 1 > /dev/wmtWifi). Without the NVRAM write the driver runs on
+# defaults: MAC 00:08:22:..., 2.4 GHz only. NetworkManager picks wlan0 up
+# via udev.
 set -u
 FW="ROMv4_be_patch_1_0_hdr.bin ROMv4_be_patch_1_1_hdr.bin WIFI_RAM_CODE_6759 WMT_SOC.cfg"
 NV=/mnt/vendor/nvdata/APCFG/APRDEB
@@ -55,6 +59,18 @@ for m in btif wmt_drv wmt_chrdev_wifi wlan_drv_gen3; do
     modprobe "$m" || { say "modprobe $m failed"; exit 1; }
 done
 for i in $(seq 1 10); do [ -c /dev/wmtWifi ] && break; sleep 0.5; done
+# NVRAM must reach the driver before power-on (it is read at probe).
+NVREC=1024   # sizeof(WIFI_CFG_PARAM_STRUCT) with CFG_SUPPORT_PCC
+if [ "$(stat -c %s "$NV/WIFI" 2>/dev/null || echo 0)" -ge $NVREC ]; then
+    t=$(mktemp)
+    { printf 'WR-BUF:NVRAM'; head -c $NVREC "$NV/WIFI"; } > "$t"
+    dd if="$t" of=/dev/wmtWifi bs=$((NVREC + 12)) count=1 status=none \
+        && say "NVRAM handed to the driver" \
+        || say "WARNING: NVRAM write failed (driver defaults, 2.4 GHz only)"
+    rm -f "$t"
+else
+    say "WARNING: no NVRAM record (driver defaults, 2.4 GHz only)"
+fi
 echo 1 > /dev/wmtWifi || { say "Wi-Fi power-on failed (dmesg: WMT)"; exit 1; }
 for i in $(seq 1 20); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.5; done
 [ -e /sys/class/net/wlan0 ] || { say "no wlan0 after power-on"; exit 1; }
