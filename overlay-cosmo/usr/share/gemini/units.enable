@@ -1,3 +1,4 @@
 # Units enabled by bin/apply-files.sh (Cosmo image).
 gemini-growfs.service
 cosmo-boot-ok.service
+cosmo-wifi.service

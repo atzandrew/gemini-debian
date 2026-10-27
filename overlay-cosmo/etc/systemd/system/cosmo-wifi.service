@@ -1,0 +1,14 @@
+# Internal Wi-Fi bring-up -> wlan0 (/usr/local/sbin/cosmo-wifi). No
+# Before=NetworkManager.service: NM picks wlan0 up via udev when it appears.
+[Unit]
+Description=Cosmo internal Wi-Fi (MT6771 CONSYS) -> wlan0
+After=local-fs.target systemd-udevd.service systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=90
+ExecStart=/usr/local/sbin/cosmo-wifi
+
+[Install]
+WantedBy=multi-user.target
