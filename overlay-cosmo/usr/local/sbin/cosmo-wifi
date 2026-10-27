@@ -1,0 +1,61 @@
+#!/bin/bash
+# cosmo-wifi — bring up the Cosmo's internal Wi-Fi (MT6771 CONSYS) -> wlan0.
+#
+# The image ships no MediaTek blobs and no per-unit data. Before loading the
+# drivers this copies, read-only (debugfs without -w, nothing mounted):
+#   - Wi-Fi/WMT firmware from this unit's Android "vendor" partition
+#     (/firmware/...) into /lib/firmware, if missing;
+#   - this unit's Wi-Fi NVRAM record (MAC + TX calibration) from "nvdata"
+#     (/APCFG/APRDEB/WIFI, WIFI_CUSTOM) into /mnt/vendor/nvdata, where the
+#     stock gen3 driver reads it, if missing.
+# Then loads btif -> wmt_drv -> wmt_chrdev_wifi -> wlan_drv_gen3 and powers
+# Wi-Fi on (echo 1 > /dev/wmtWifi). NetworkManager picks wlan0 up via udev.
+set -u
+FW="ROMv4_be_patch_1_0_hdr.bin ROMv4_be_patch_1_1_hdr.bin WIFI_RAM_CODE_6759 WMT_SOC.cfg"
+NV=/mnt/vendor/nvdata/APCFG/APRDEB
+say() { echo "cosmo-wifi: $*"; }
+
+part() { # GPT name -> device
+    local i
+    for i in $(seq 1 10); do
+        [ -e "/dev/disk/by-partlabel/$1" ] && { readlink -f "/dev/disk/by-partlabel/$1"; return 0; }
+        sleep 1
+    done
+    return 1
+}
+dump() { # $1 = partition, $2 = path inside, $3 = destination
+    local t; t=$(mktemp)
+    debugfs -R "dump $2 $t" "$1" >/dev/null 2>&1
+    if [ -s "$t" ]; then install -m 644 "$t" "$3"; rm -f "$t"; return 0; fi
+    rm -f "$t"; return 1
+}
+
+if v=$(part vendor); then
+    for f in $FW; do
+        [ -s "/lib/firmware/$f" ] && continue
+        dump "$v" "/firmware/$f" "/lib/firmware/$f" && say "firmware $f copied from $v" \
+            || say "WARNING: no /firmware/$f on $v"
+    done
+else
+    say "WARNING: no vendor partition"
+fi
+
+mkdir -p "$NV"
+if n=$(part nvdata); then
+    for f in WIFI WIFI_CUSTOM; do
+        [ -s "$NV/$f" ] && continue
+        dump "$n" "/APCFG/APRDEB/$f" "$NV/$f" && say "NVRAM $f copied from $n" \
+            || say "WARNING: no /APCFG/APRDEB/$f on $n (driver defaults)"
+    done
+else
+    say "WARNING: no nvdata partition (driver defaults)"
+fi
+
+for m in btif wmt_drv wmt_chrdev_wifi wlan_drv_gen3; do
+    modprobe "$m" || { say "modprobe $m failed"; exit 1; }
+done
+for i in $(seq 1 10); do [ -c /dev/wmtWifi ] && break; sleep 0.5; done
+echo 1 > /dev/wmtWifi || { say "Wi-Fi power-on failed (dmesg: WMT)"; exit 1; }
+for i in $(seq 1 20); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.5; done
+[ -e /sys/class/net/wlan0 ] || { say "no wlan0 after power-on"; exit 1; }
+say "wlan0 up ($(cat /sys/class/net/wlan0/address))"

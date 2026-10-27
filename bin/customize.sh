@@ -159,7 +159,7 @@ if [ "$DEVICE" = cosmo ]; then
     for t in sshd nmcli dnsmasq resize2fs; do
         in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing"; exit 1; }
     done
-    for u in ssh.service NetworkManager.service cosmo-boot-ok.service gemini-growfs.service; do
+    for u in ssh.service NetworkManager.service cosmo-boot-ok.service gemini-growfs.service cosmo-wifi.service; do
         in_chroot systemctl is-enabled "$u" >/dev/null 2>&1 || { echo "!! $u not enabled"; exit 1; }
     done
     grep -qx "RuntimeWatchdogSec=30s" "$R/etc/systemd/system.conf.d/cosmo-watchdog.conf" || { echo "!! systemd watchdog (timer failsafe) not configured"; exit 1; }
@@ -167,6 +167,9 @@ if [ "$DEVICE" = cosmo ]; then
     grep -q "PARTLABEL=userdata / " "$R/etc/fstab" || { echo "!! fstab root is not PARTLABEL=userdata"; exit 1; }
     [ -f "$R/usr/share/X11/xkb/symbols/cosmo" ] || { echo "!! cosmo xkb symbols missing"; exit 1; }
     grep -qx "XKBLAYOUT=\"cosmo\"" "$R/etc/default/keyboard" || { echo "!! keyboard layout is not cosmo"; exit 1; }
+    for t in debugfs modprobe; do
+        in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (cosmo-wifi)"; exit 1; }
+    done
     in_chroot sh -c "command -v setupcon" >/dev/null || { echo "!! console-setup missing"; exit 1; }
     [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
     echo "    customize: ok (cosmo)"
