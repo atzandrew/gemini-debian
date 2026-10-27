@@ -162,6 +162,7 @@ if [ "$DEVICE" = cosmo ]; then
     for u in ssh.service NetworkManager.service cosmo-boot-ok.service gemini-growfs.service cosmo-wifi.service; do
         in_chroot systemctl is-enabled "$u" >/dev/null 2>&1 || { echo "!! $u not enabled"; exit 1; }
     done
+    grep -qx "kernel.panic_on_oops = 1" "$R/etc/sysctl.d/90-cosmo-panic.conf" || { echo "!! panic_on_oops sysctl missing (oops would not reset)"; exit 1; }
     grep -qx "RuntimeWatchdogSec=30s" "$R/etc/systemd/system.conf.d/cosmo-watchdog.conf" || { echo "!! systemd watchdog (timer failsafe) not configured"; exit 1; }
     grep -qx "method=shared" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 not in shared mode"; exit 1; }
     grep -q "PARTLABEL=userdata / " "$R/etc/fstab" || { echo "!! fstab root is not PARTLABEL=userdata"; exit 1; }
