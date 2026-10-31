@@ -1,0 +1,8 @@
+# Cosmo desktop extras, installed without Recommends (devices/cosmo.env
+# EXTRA_LISTS). Plasma itself comes from desktop.list (with Recommends).
+#
+# Login: greetd + tuigreet, a text greeter on tty1 as on the Gemini
+# (overlay-cosmo/etc/greetd/config.toml); Plasma (Wayland) starts after
+# login.
+greetd
+tuigreet

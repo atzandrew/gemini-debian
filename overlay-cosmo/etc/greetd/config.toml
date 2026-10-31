@@ -1,0 +1,12 @@
+# Cosmo Communicator: greetd + tuigreet login, as the Gemini
+# (overlay/etc/greetd/config.toml, which explains the options). tuigreet
+# is a text greeter on tty1, so no compositor runs before login; Plasma
+# (Wayland) starts after login. No first-boot automatic login on the
+# Cosmo (GEMINI_FIRST_SETUP=0). The theme uses colour names only; the
+# Cosmo keeps the default console palette.
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --asterisks --remember --remember-session --sessions /usr/share/wayland-sessions --xsessions /usr/share/gemini/no-x11-sessions --cmd startplasma-wayland --greeting 'c o s m o' --theme 'container=black;border=black;title=darkgray;text=gray;greet=white;time=darkgray;prompt=magenta;input=white;action=darkgray;button=magenta'"
+user = "_greetd"
