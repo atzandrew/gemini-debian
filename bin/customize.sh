@@ -19,9 +19,9 @@ in_chroot depmod -a "$KVER"
 # Installed here from the part-2 baseline so the exact .debs it needed
 # (packages + any missing dependencies) can also go into the update bundle
 # for a running Gemini with no network.
-# Gemini only: the Cosmo image is headless for now (devices/cosmo.env).
-EXTRA=
-[ "$DEVICE" != gemini ] || EXTRA=$(sed -e 's/#.*//' /work/packages/extra.list | xargs)
+# Lists per device: EXTRA_LISTS / DESKTOP_LISTS in config.env and
+# devices/<name>.env.
+EXTRA=$(for l in ${EXTRA_LISTS:-}; do sed -e 's/#.*//' "/work/packages/$l"; done | xargs)
 mkdir -p "$B/debs"
 if [ -n "$EXTRA" ]; then
     echo "    customize: extra packages: $EXTRA"
@@ -51,7 +51,7 @@ if [ -n "$EXTRA" ]; then
     # e.g. plasma-pa = the volume applet + Sound settings page). Explicit
     # --install-recommends: the mmdebstrap chroot does not install them by
     # default (2026-10-04 image came up without plasma-pa).
-    DESKTOP=$(sed -e 's/#.*//' /work/packages/desktop.list | xargs)
+    DESKTOP=$(for l in ${DESKTOP_LISTS:-}; do sed -e 's/#.*//' "/work/packages/$l"; done | xargs)
     if [ -n "$DESKTOP" ]; then
         echo "    customize: desktop packages (with recommends): $DESKTOP"
         # shellcheck disable=SC2086
@@ -172,6 +172,10 @@ if [ "$DEVICE" = cosmo ]; then
         in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (cosmo-wifi)"; exit 1; }
     done
     in_chroot sh -c "command -v setupcon" >/dev/null || { echo "!! console-setup missing"; exit 1; }
+    for t in greetd tuigreet startplasma-wayland kwin_wayland; do
+        in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (desktop)"; exit 1; }
+    done
+    in_chroot systemctl is-enabled greetd.service >/dev/null 2>&1 || { echo "!! greetd.service not enabled"; exit 1; }
     [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
     echo "    customize: ok (cosmo)"
     exit 0
