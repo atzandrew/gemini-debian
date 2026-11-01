@@ -1,0 +1,10 @@
+#!/bin/sh
+# Power the internal Wi-Fi (CONNSYS) off across system sleep, as stock does
+# (echo 0 > /dev/wmtWifi runs mtk_wcn_consys_hw_pwr_off). With Wi-Fi left on,
+# CONN2AP wakes or hangs deep sleep. NetworkManager reconnects on resume.
+[ -c /dev/wmtWifi ] || exit 0
+case "$1/$2" in
+    pre/*)  echo 0 > /dev/wmtWifi ;;
+    post/*) echo 1 > /dev/wmtWifi ;;
+esac
+exit 0
