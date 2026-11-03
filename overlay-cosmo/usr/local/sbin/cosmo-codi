@@ -26,6 +26,8 @@ import os, sys, time, struct, select, termios, signal, subprocess, errno
 TTY = "/dev/ttyS1"
 RESET_GPIO = "77"
 CTL = "/run/cosmo-codi.cmd"
+# Kernel cosmo-fusb301a: power-cycles the right port while it is the host.
+REPLUG = "/sys/bus/i2c/devices/3-0025/replug"
 BAT = "/sys/class/power_supply/battery"
 SEQ = 1234
 MAGIC = b"X!X!"
@@ -193,6 +195,15 @@ def right_usb(link):
     link.send(SYNC_RIGHT_USB_OTG_STATUS, u16(2))
     time.sleep(0.06)
     link.send(SYNC_RIGHT_USB_OTG_STATUS, u16(1))
+    # A device already powered on the right before this (plugged in through
+    # boot or an STM32 reset) can stay unseen: restart it. The driver does
+    # nothing unless the right port is the host.
+    time.sleep(0.1)
+    try:
+        with open(REPLUG, "w") as f:
+            f.write("1\n")
+    except OSError as e:
+        log("right-port replug failed:", e)
 
 def reset_stm32():
     subprocess.run(["gpioset", "-t", "100ms,0", "-c", "gpiochip0", RESET_GPIO + "=1"], check=True)
