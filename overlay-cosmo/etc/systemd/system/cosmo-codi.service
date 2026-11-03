@@ -1,0 +1,13 @@
+# Cover display (STM32 "CoDi") link on /dev/ttyS1 (/usr/local/sbin/cosmo-codi).
+[Unit]
+Description=Cosmo cover display (STM32) link
+BindsTo=dev-ttyS1.device
+After=dev-ttyS1.device
+
+[Service]
+ExecStart=/usr/local/sbin/cosmo-codi
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

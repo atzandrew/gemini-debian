@@ -1,0 +1,251 @@
+#!/usr/bin/python3 -I
+"""cosmo-codi: link to the Cosmo's cover-display MCU (STM32, "CoDi").
+
+The STM32 sits on UART1 (/dev/ttyS1, 115200 8N1). Its reset line is GPIO77
+(high = held in reset). After a reset it prints a bootloader banner and
+then exchanges binary frames with the SoC:
+
+    "X!X!" | u32 total length | u32 command | u32 sequence | payload
+
+All integers are big-endian. Frames from the SoC carry sequence 1234,
+frames from the STM32 carry 0. Strings are u32 length + bytes + NUL.
+The STM32 asks for status with GET commands and expects the matching INFO
+command back. Command numbers and payload layouts here were observed on the
+stock firmware; unknown requests are logged and left unanswered.
+
+Control: write a line to /run/cosmo-codi.cmd ("wake", "time", "battery",
+"reset", "raw <cmd> <hex payload>").
+"""
+import os, sys, time, struct, select, termios, signal, subprocess, errno
+
+TTY = "/dev/ttyS1"
+RESET_GPIO = "77"
+CTL = "/run/cosmo-codi.cmd"
+BAT = "/sys/class/power_supply/battery"
+SEQ = 1234
+MAGIC = b"X!X!"
+
+# Command numbers (stock firmware).
+GET_DATETIME, INFO_DATETIME = 7, 8
+INFO_COVER_STATUS = 16
+INFO_WIFI_STATUS = 19
+INFO_BATTERY_LEVEL = 42
+INFO_MODEM_SIGNAL = 111
+INFO_SCREEN_OFF_TIMEOUT = 131
+COVER_STATE = 121          # sent by stock on lid close: 1, 0, 1
+SYNC_SYS_SLEEP_STATUS = 143
+
+def log(*a):
+    print(*a, flush=True)
+
+def frame(cmd, payload=b""):
+    return MAGIC + struct.pack(">III", 16 + len(payload), cmd, SEQ) + payload
+
+def u16(v): return struct.pack(">H", v & 0xFFFF)
+def u32(v): return struct.pack(">I", v & 0xFFFFFFFF)
+def s32(v): return struct.pack(">i", v)
+
+def read(path, default=""):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return default
+
+def battery_payload():
+    try:
+        cap = int(read(BAT + "/capacity", "0"))
+    except ValueError:
+        cap = 0
+    charging = read(BAT + "/status") in ("Charging", "Full")
+    return u16(max(0, min(cap, 100)) + (128 if charging else 0))
+
+def time_payload():
+    t = time.localtime()
+    tz = -(time.altzone if t.tm_isdst else time.timezone) * 1000
+    # day, month (0-based), year, hour, minute, second, zone offset in ms
+    return (u32(t.tm_mday) + u32(t.tm_mon - 1) + u32(t.tm_year) + u32(t.tm_hour)
+            + u32(t.tm_min) + u32(t.tm_sec) + s32(tz))
+
+def wifi_payload():
+    if read("/sys/class/net/wlan0/operstate") != "up":
+        return u16(0) + u32(0)
+    level = 0
+    for line in read("/proc/net/wireless").splitlines()[2:]:
+        parts = line.split()
+        if parts and parts[0].rstrip(":") == "wlan0":
+            try:
+                level = int(float(parts[2]) * 100 / 70)
+            except (IndexError, ValueError):
+                pass
+    return u16(7) + u32(level)  # stock sent 7 while connected
+
+# GET request -> (INFO reply, payload builder). Status flags we do not
+# track yet answer "off" (u16 0).
+OFF = lambda: u16(0)
+REPLIES = {
+    GET_DATETIME: (INFO_DATETIME, time_payload),
+    10: (11, OFF),        # location
+    13: (14, OFF),        # torch
+    18: (INFO_WIFI_STATUS, wifi_payload),
+    21: (22, OFF),        # Bluetooth
+    24: (25, OFF),        # battery saver
+    27: (28, OFF),        # flight mode
+    30: (31, OFF),        # hotspot
+    33: (34, OFF),        # mobile data
+    36: (37, OFF),        # do not disturb
+    41: (INFO_BATTERY_LEVEL, battery_payload),
+    114: (INFO_MODEM_SIGNAL, lambda: s32(-1) + s32(-1) + u32(0)),  # no modem
+    130: (INFO_SCREEN_OFF_TIMEOUT, lambda: u32(30000)),
+}
+QUIET = {SYNC_SYS_SLEEP_STATUS}
+
+class Link:
+    def __init__(self):
+        self.fd = os.open(TTY, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+        a = termios.tcgetattr(self.fd)
+        a[0] = 0                                    # iflag: raw
+        a[1] = 0                                    # oflag
+        a[2] = termios.CS8 | termios.CREAD | termios.CLOCAL
+        a[3] = 0                                    # lflag
+        a[4] = a[5] = termios.B115200
+        termios.tcsetattr(self.fd, termios.TCSANOW, a)
+        termios.tcflush(self.fd, termios.TCIOFLUSH)
+        self.buf = b""
+        self.pending = b""
+        self.unknown = set()
+
+    def send(self, cmd, payload=b""):
+        f = frame(cmd, payload)
+        view = memoryview(f)
+        while view:
+            try:
+                n = os.write(self.fd, view)
+                view = view[n:]
+            except BlockingIOError:
+                select.select([], [self.fd], [], 1)
+
+    def text(self, data):
+        # Plain text (bootloader banner) arrives between frames; log it a
+        # line at a time.
+        self.pending += data
+        while b"\n" in self.pending:
+            line, self.pending = self.pending.split(b"\n", 1)
+            self.flush_text(line)
+
+    def flush_text(self, data=None):
+        if data is None:
+            data, self.pending = self.pending, b""
+        data = data.strip(b"\0\r\n ")
+        if data:
+            log("stm32 text:", data.decode("ascii", "replace"))
+
+    def frames(self):
+        try:
+            self.buf += os.read(self.fd, 4096)
+        except BlockingIOError:
+            return
+        while True:
+            i = self.buf.find(MAGIC)
+            if i < 0:
+                self.text(self.buf[:-3])
+                self.buf = self.buf[-3:]
+                return
+            if i > 0:
+                self.text(self.buf[:i])
+                self.buf = self.buf[i:]
+            self.flush_text()
+            if len(self.buf) < 16:
+                return
+            ln, cmd, _ = struct.unpack_from(">III", self.buf, 4)
+            if ln < 16 or ln > 65536:
+                self.buf = self.buf[4:]
+                continue
+            if len(self.buf) < ln:
+                return
+            yield cmd, self.buf[16:ln]
+            self.buf = self.buf[ln:]
+
+    def handle(self, cmd, payload):
+        if cmd in REPLIES:
+            reply, build = REPLIES[cmd]
+            self.send(reply, build())
+        elif cmd not in QUIET and cmd not in self.unknown:
+            self.unknown.add(cmd)
+            log("unanswered request %d payload %s" % (cmd, payload.hex(" ")))
+
+    def wake(self):
+        # Stock lid-close sequence; the STM32 then lights the cover display
+        # and asks for status.
+        self.send(INFO_COVER_STATUS, u16(0))
+        self.send(COVER_STATE, u32(1) + u32(0) + u32(1))
+        self.send(INFO_DATETIME, time_payload())
+        self.send(INFO_BATTERY_LEVEL, battery_payload())
+
+def reset_stm32():
+    subprocess.run(["gpioset", "-t", "100ms,0", "-c", "gpiochip0", RESET_GPIO + "=1"], check=True)
+    subprocess.run(["gpioset", "-t", "0", "-c", "gpiochip0", RESET_GPIO + "=0"], check=True)
+
+def open_ctl():
+    try:
+        os.unlink(CTL)
+    except FileNotFoundError:
+        pass
+    os.mkfifo(CTL, 0o600)
+    return os.open(CTL, os.O_RDWR | os.O_NONBLOCK)
+
+def control(link, line):
+    words = line.split()
+    if not words:
+        return
+    if words[0] == "wake":
+        link.wake()
+    elif words[0] == "time":
+        link.send(INFO_DATETIME, time_payload())
+    elif words[0] == "battery":
+        link.send(INFO_BATTERY_LEVEL, battery_payload())
+    elif words[0] == "reset":
+        reset_stm32()
+    elif words[0] == "raw" and len(words) >= 2:
+        link.send(int(words[1], 0), bytes.fromhex("".join(words[2:])))
+    else:
+        log("unknown control command:", line)
+
+def main():
+    signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))
+    link = Link()
+    reset_stm32()
+    log("stm32 reset, link open on", TTY)
+    ctl = open_ctl()
+    woke = False
+    start = time.monotonic()
+    last_bat = None
+    next_tick = time.monotonic() + 60
+    ctlbuf = b""
+    while True:
+        r, _, _ = select.select([link.fd, ctl], [], [], 5)
+        if link.fd in r:
+            for cmd, payload in link.frames():
+                link.handle(cmd, payload)
+        if ctl in r:
+            try:
+                ctlbuf += os.read(ctl, 1024)
+            except BlockingIOError:
+                pass
+            while b"\n" in ctlbuf:
+                line, ctlbuf = ctlbuf.split(b"\n", 1)
+                control(link, line.decode("utf-8", "replace"))
+        now = time.monotonic()
+        if not woke and now - start > 3:
+            link.wake()
+            woke = True
+        if now >= next_tick:
+            next_tick = now + 60
+            link.send(INFO_DATETIME, time_payload())
+            bat = battery_payload()
+            if bat != last_bat:
+                link.send(INFO_BATTERY_LEVEL, bat)
+                last_bat = bat
+
+if __name__ == "__main__":
+    main()
