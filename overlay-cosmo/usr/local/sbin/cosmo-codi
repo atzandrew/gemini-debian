@@ -13,8 +13,13 @@ The STM32 asks for status with GET commands and expects the matching INFO
 command back. Command numbers and payload layouts here were observed on the
 stock firmware; unknown requests are logged and left unanswered.
 
+The STM32 also switches the right USB-C port's data lines: after every
+STM32 reset it needs SYNC_RIGHT_USB_OTG_STATUS type 2, then type 1 (what
+Android sends on a right-port attach); until then a device on the right
+port never reaches the SoC. Left-port USB keeps working in that state.
+
 Control: write a line to /run/cosmo-codi.cmd ("wake", "time", "battery",
-"reset", "raw <cmd> <hex payload>").
+"usb", "reset", "raw <cmd> <hex payload>").
 """
 import os, sys, time, struct, select, termios, signal, subprocess, errno
 
@@ -34,6 +39,7 @@ INFO_MODEM_SIGNAL = 111
 INFO_SCREEN_OFF_TIMEOUT = 131
 COVER_STATE = 121          # sent by stock on lid close: 1, 0, 1
 SYNC_SYS_SLEEP_STATUS = 143
+SYNC_RIGHT_USB_OTG_STATUS = 144   # u16 type: 0 left, 1, 2 (stock F14: 2 then 1)
 
 def log(*a):
     print(*a, flush=True)
@@ -182,6 +188,12 @@ class Link:
         self.send(INFO_DATETIME, time_payload())
         self.send(INFO_BATTERY_LEVEL, battery_payload())
 
+def right_usb(link):
+    # Stock order on a right-port attach: type 2, ~60 ms, type 1.
+    link.send(SYNC_RIGHT_USB_OTG_STATUS, u16(2))
+    time.sleep(0.06)
+    link.send(SYNC_RIGHT_USB_OTG_STATUS, u16(1))
+
 def reset_stm32():
     subprocess.run(["gpioset", "-t", "100ms,0", "-c", "gpiochip0", RESET_GPIO + "=1"], check=True)
     subprocess.run(["gpioset", "-t", "0", "-c", "gpiochip0", RESET_GPIO + "=0"], check=True)
@@ -204,8 +216,13 @@ def control(link, line):
         link.send(INFO_DATETIME, time_payload())
     elif words[0] == "battery":
         link.send(INFO_BATTERY_LEVEL, battery_payload())
+    elif words[0] == "usb":
+        right_usb(link)
     elif words[0] == "reset":
         reset_stm32()
+        time.sleep(3)
+        link.wake()
+        right_usb(link)
     elif words[0] == "raw" and len(words) >= 2:
         link.send(int(words[1], 0), bytes.fromhex("".join(words[2:])))
     else:
@@ -238,6 +255,7 @@ def main():
         now = time.monotonic()
         if not woke and now - start > 3:
             link.wake()
+            right_usb(link)
             woke = True
         if now >= next_tick:
             next_tick = now + 60
