@@ -3,3 +3,6 @@
 dnsmasq-base
 # Console keymap from the xkb layout (Fn layer; etc/default/keyboard).
 console-setup
+# Cover display link (cosmo-codi): Python and gpioset for the STM32 reset.
+python3
+gpiod
