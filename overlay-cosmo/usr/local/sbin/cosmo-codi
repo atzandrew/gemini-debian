@@ -21,11 +21,15 @@ port never reaches the SoC. Left-port USB keeps working in that state.
 The lid (kernel gpio-keys SW_LID) is forwarded as stock does: on close the
 lid-close sequence (cover status 0), on open cover status 1 (stock
 PhoneWindowManager: AMOLEDISON_COVER_MSG_ID "0" on close, "1" on open).
+While the lid is shut the screen presses keys, so the keyboard is
+inhibited until it opens (stock: coverClosedIgnoreKeys). The fingerprint
+side key (PMIC home key, KEY_PROG1 in the device tree) lights the cover
+display at any time.
 
 Control: write a line to /run/cosmo-codi.cmd ("wake", "time", "battery",
 "usb", "reset", "raw <cmd> <hex payload>").
 """
-import os, sys, time, struct, select, termios, signal, subprocess, errno
+import os, sys, time, struct, select, termios, signal, subprocess, errno, fcntl
 
 TTY = "/dev/ttyS1"
 RESET_GPIO = "77"
@@ -35,7 +39,10 @@ REPLUG = "/sys/bus/i2c/devices/3-0025/replug"
 BAT = "/sys/class/power_supply/battery"
 LID = "/dev/input/by-path/platform-gpio-keys-event"
 EVENT = struct.Struct("llHHi")    # struct input_event (64-bit)
-EV_SW, SW_LID = 5, 0
+PMIC_KEYS = "/dev/input/by-path/platform-mt6358-keys-event"
+KEYBOARD = "Integrated keyboard"
+EV_KEY, EV_SW, SW_LID, KEY_PROG1 = 1, 5, 0, 148
+EVIOCGSW_1 = 0x8001451B           # EVIOCGSW(1): switch state bits 0-7
 SEQ = 1234
 MAGIC = b"X!X!"
 
@@ -246,22 +253,39 @@ def control(link, line):
     else:
         log("unknown control command:", line)
 
-def open_lid():
+def open_input(path):
     try:
-        return os.open(LID, os.O_RDONLY | os.O_NONBLOCK)
+        return os.open(path, os.O_RDONLY | os.O_NONBLOCK)
     except OSError as e:
-        log("no lid input:", e)
+        log("no input", path, e)
         return None
 
-def lid_events(fd):
+def events(fd, etype, code):
     try:
         data = os.read(fd, EVENT.size * 16)
     except BlockingIOError:
         return
     for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
-        _, _, etype, code, value = EVENT.unpack_from(data, i)
-        if etype == EV_SW and code == SW_LID:
+        _, _, t, c, value = EVENT.unpack_from(data, i)
+        if t == etype and c == code:
             yield value
+
+def lid_closed_now(fd):
+    buf = bytearray(1)
+    fcntl.ioctl(fd, EVIOCGSW_1, buf)
+    return bool(buf[0] & (1 << SW_LID))
+
+def keyboard_inhibit(on):
+    for d in os.listdir("/sys/class/input"):
+        base = os.path.join("/sys/class/input", d)
+        if d.startswith("input") and read(os.path.join(base, "name")) == KEYBOARD:
+            try:
+                with open(os.path.join(base, "inhibited"), "w") as f:
+                    f.write("1\n" if on else "0\n")
+            except OSError as e:
+                log("keyboard inhibit failed:", e)
+            return
+    log("keyboard not found")
 
 def main():
     signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))
@@ -269,22 +293,31 @@ def main():
     reset_stm32()
     log("stm32 reset, link open on", TTY)
     ctl = open_ctl()
-    lid = open_lid()
+    lid = open_input(LID)
+    keys = open_input(PMIC_KEYS)
+    if lid is not None:
+        keyboard_inhibit(lid_closed_now(lid))
     woke = False
     start = time.monotonic()
     last_bat = None
     next_tick = time.monotonic() + 60
     ctlbuf = b""
     while True:
-        fds = [link.fd, ctl] + ([lid] if lid is not None else [])
+        fds = [link.fd, ctl] + [f for f in (lid, keys) if f is not None]
         r, _, _ = select.select(fds, [], [], 5)
         if lid is not None and lid in r:
-            for closed in lid_events(lid):
+            for closed in events(lid, EV_SW, SW_LID):
                 log("lid", "closed" if closed else "opened")
+                keyboard_inhibit(closed)
                 if closed:
                     link.wake()
                 else:
                     link.send(INFO_COVER_STATUS, u16(1))
+        if keys is not None and keys in r:
+            for value in events(keys, EV_KEY, KEY_PROG1):
+                if value == 1:
+                    log("side key: cover display on")
+                    link.wake()
         if link.fd in r:
             for cmd, payload in link.frames():
                 link.handle(cmd, payload)
