@@ -24,7 +24,9 @@ PhoneWindowManager: AMOLEDISON_COVER_MSG_ID "0" on close, "1" on open).
 While the lid is shut the screen presses keys, so the keyboard is
 inhibited until it opens (stock: coverClosedIgnoreKeys). The fingerprint
 side key (PMIC home key, KEY_PROG1 in the device tree) lights the cover
-display at any time.
+display at any time. The silver key reaches the SoC only as an STM32
+request (CMD_ST32_SET_LOCK); it is passed on as KEY_PROG2 on a uinput
+device "Cosmo silver key", for the desktop to bind.
 
 Control: write a line to /run/cosmo-codi.cmd ("wake", "time", "battery",
 "usb", "reset", "raw <cmd> <hex payload>").
@@ -43,6 +45,9 @@ PMIC_KEYS = "/dev/input/by-path/platform-mt6358-keys-event"
 KEYBOARD = "Integrated keyboard"
 EV_KEY, EV_SW, SW_LID, KEY_PROG1 = 1, 5, 0, 148
 EVIOCGSW_1 = 0x8001451B           # EVIOCGSW(1): switch state bits 0-7
+KEY_PROG2, BUS_VIRTUAL, EV_SYN = 149, 6, 0
+UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE = 0x40045564, 0x40045565, 0x5501
+ST32_SET_LOCK = 45                # STM32 request on a silver key press
 SEQ = 1234
 MAGIC = b"X!X!"
 
@@ -122,9 +127,28 @@ REPLIES = {
 }
 QUIET = {SYNC_SYS_SLEEP_STATUS}
 
+class SilverKey:
+    """uinput device that reports the silver key as KEY_PROG2."""
+    def __init__(self):
+        if not os.path.exists("/dev/uinput"):
+            subprocess.run(["modprobe", "uinput"], check=False)
+        self.fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+        fcntl.ioctl(self.fd, UI_SET_EVBIT, EV_KEY)
+        fcntl.ioctl(self.fd, UI_SET_KEYBIT, KEY_PROG2)
+        # struct uinput_user_dev: name[80], input_id, ff_effects_max, abs[4][64]
+        os.write(self.fd, struct.pack("80sHHHHi256i", b"Cosmo silver key",
+                                      BUS_VIRTUAL, 0, 0, 0, 0, *([0] * 256)))
+        fcntl.ioctl(self.fd, UI_DEV_CREATE)
+
+    def press(self):
+        for value in (1, 0):
+            os.write(self.fd, EVENT.pack(0, 0, EV_KEY, KEY_PROG2, value))
+            os.write(self.fd, EVENT.pack(0, 0, EV_SYN, 0, 0))
+
 class Link:
     def __init__(self):
         self.fd = os.open(TTY, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+        self.silver = None
         a = termios.tcgetattr(self.fd)
         a[0] = 0                                    # iflag: raw
         a[1] = 0                                    # oflag
@@ -189,7 +213,11 @@ class Link:
             self.buf = self.buf[ln:]
 
     def handle(self, cmd, payload):
-        if cmd in REPLIES:
+        if cmd == ST32_SET_LOCK:
+            log("silver key, payload", payload.hex(" "))
+            if self.silver is not None:
+                self.silver.press()
+        elif cmd in REPLIES:
             reply, build = REPLIES[cmd]
             self.send(reply, build())
         elif cmd not in QUIET and cmd not in self.unknown:
@@ -290,6 +318,10 @@ def keyboard_inhibit(on):
 def main():
     signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))
     link = Link()
+    try:
+        link.silver = SilverKey()
+    except OSError as e:
+        log("no silver key input:", e)
     reset_stm32()
     log("stm32 reset, link open on", TTY)
     ctl = open_ctl()
