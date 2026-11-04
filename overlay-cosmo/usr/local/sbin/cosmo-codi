@@ -18,6 +18,10 @@ STM32 reset it needs SYNC_RIGHT_USB_OTG_STATUS type 2, then type 1 (what
 Android sends on a right-port attach); until then a device on the right
 port never reaches the SoC. Left-port USB keeps working in that state.
 
+The lid (kernel gpio-keys SW_LID) is forwarded as stock does: on close the
+lid-close sequence (cover status 0), on open cover status 1 (stock
+PhoneWindowManager: AMOLEDISON_COVER_MSG_ID "0" on close, "1" on open).
+
 Control: write a line to /run/cosmo-codi.cmd ("wake", "time", "battery",
 "usb", "reset", "raw <cmd> <hex payload>").
 """
@@ -29,6 +33,9 @@ CTL = "/run/cosmo-codi.cmd"
 # Kernel cosmo-fusb301a: power-cycles the right port while it is the host.
 REPLUG = "/sys/bus/i2c/devices/3-0025/replug"
 BAT = "/sys/class/power_supply/battery"
+LID = "/dev/input/by-path/platform-gpio-keys-event"
+EVENT = struct.Struct("llHHi")    # struct input_event (64-bit)
+EV_SW, SW_LID = 5, 0
 SEQ = 1234
 MAGIC = b"X!X!"
 
@@ -239,19 +246,45 @@ def control(link, line):
     else:
         log("unknown control command:", line)
 
+def open_lid():
+    try:
+        return os.open(LID, os.O_RDONLY | os.O_NONBLOCK)
+    except OSError as e:
+        log("no lid input:", e)
+        return None
+
+def lid_events(fd):
+    try:
+        data = os.read(fd, EVENT.size * 16)
+    except BlockingIOError:
+        return
+    for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
+        _, _, etype, code, value = EVENT.unpack_from(data, i)
+        if etype == EV_SW and code == SW_LID:
+            yield value
+
 def main():
     signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))
     link = Link()
     reset_stm32()
     log("stm32 reset, link open on", TTY)
     ctl = open_ctl()
+    lid = open_lid()
     woke = False
     start = time.monotonic()
     last_bat = None
     next_tick = time.monotonic() + 60
     ctlbuf = b""
     while True:
-        r, _, _ = select.select([link.fd, ctl], [], [], 5)
+        fds = [link.fd, ctl] + ([lid] if lid is not None else [])
+        r, _, _ = select.select(fds, [], [], 5)
+        if lid is not None and lid in r:
+            for closed in lid_events(lid):
+                log("lid", "closed" if closed else "opened")
+                if closed:
+                    link.wake()
+                else:
+                    link.send(INFO_COVER_STATUS, u16(1))
         if link.fd in r:
             for cmd, payload in link.frames():
                 link.handle(cmd, payload)
