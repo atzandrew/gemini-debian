@@ -2,9 +2,22 @@
 # Power the internal Wi-Fi (CONNSYS) off across system sleep, as stock does
 # (echo 0 > /dev/wmtWifi runs mtk_wcn_consys_hw_pwr_off). With Wi-Fi left on,
 # CONN2AP wakes or hangs deep sleep. NetworkManager reconnects on resume.
+#
+# Power-on takes ~1.8 s and systemd-sleep waits for post hooks before it
+# reports resume, which holds the screen off. Run it as a separate unit so
+# the screen comes back at once; a new sleep waits for it to finish first.
 [ -c /dev/wmtWifi ] || exit 0
+unit=cosmo-wifi-resume
 case "$1/$2" in
-    pre/*)  echo 0 > /dev/wmtWifi ;;
-    post/*) echo 1 > /dev/wmtWifi ;;
+    pre/*)
+        i=0
+        while systemctl -q is-active "$unit" && [ $i -lt 50 ]; do
+            sleep 0.1; i=$((i + 1))
+        done
+        echo 0 > /dev/wmtWifi ;;
+    post/*)
+        systemd-run --no-block --collect --quiet --unit="$unit" \
+            sh -c 'echo 1 > /dev/wmtWifi' ||
+            echo 1 > /dev/wmtWifi ;;
 esac
 exit 0
