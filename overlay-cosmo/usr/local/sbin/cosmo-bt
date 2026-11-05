@@ -10,6 +10,9 @@
 set -u
 NV=/mnt/vendor/nvdata/APCFG/APRDEB
 say() { echo "cosmo-bt: $*"; }
+# btmgmt (BlueZ 5.82) hangs when stdin is not a terminal, as under systemd;
+# run it on a pseudo-terminal.
+bm() { timeout 5 script -qec "btmgmt --index 0 $*" /dev/null </dev/null; }
 
 modprobe hci_stp || { say "modprobe hci_stp failed"; exit 1; }
 for i in $(seq 1 20); do [ -e /sys/class/bluetooth/hci0 ] && break; sleep 0.5; done
@@ -23,7 +26,7 @@ if [ "$(stat -c %s "$NV/BT_Addr" 2>/dev/null || echo 0)" -ge 6 ]; then
     # Rejected while hci0 is powered: the kernel powers it for setup on
     # register and turns it off again after ~2 s.
     for i in $(seq 1 20); do
-        if btmgmt --index 0 public-addr "$a" 2>&1 | grep -q 'Set Public Address complete'; then
+        if bm public-addr "$a" 2>&1 | grep -q 'Set Public Address complete'; then
             say "BD address $a"; exit 0
         fi
         sleep 0.5
