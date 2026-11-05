@@ -23,14 +23,15 @@ if [ "$(stat -c %s "$NV/BT_Addr" 2>/dev/null || echo 0)" -ge 6 ]; then
     case "$a" in
         00:00:00:00:00:00|FF:FF:FF:FF:FF:FF) say "WARNING: blank BT_Addr (chip default)"; exit 0 ;;
     esac
-    # The kernel powers hci0 for setup on register and turns it off ~2 s
-    # later. Until then mgmt reports it off and accepts the address, but
-    # the chip is never re-initialised, so it keeps the default. Wait for
-    # it to go down (bluetoothd is not running yet), else close it.
+    # The kernel opens hci0 for setup on register. While that open is
+    # running (and until its automatic power-off) mgmt reports hci0 off and
+    # accepts the address, but the chip is never re-initialised, so it
+    # keeps the default. Wait for the setup open to finish, then close hci0
+    # (bluetoothd is not running yet); the next open sends the address.
     for i in $(seq 1 20); do
-        hciconfig hci0 | grep -q DOWN && break; sleep 0.5
+        hciconfig hci0 | grep -q 'UP RUNNING' && break; sleep 0.25
     done
-    hciconfig hci0 | grep -q DOWN || hciconfig hci0 down
+    hciconfig hci0 down
     for i in $(seq 1 20); do
         if bm public-addr "$a" 2>&1 | grep -q 'Set Public Address complete'; then
             say "BD address $a"; exit 0
