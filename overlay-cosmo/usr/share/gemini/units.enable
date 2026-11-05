@@ -2,5 +2,6 @@
 gemini-growfs.service
 cosmo-boot-ok.service
 cosmo-wifi.service
+cosmo-bt.service
 greetd.service
 cosmo-codi.service

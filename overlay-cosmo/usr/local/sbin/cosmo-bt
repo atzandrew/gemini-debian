@@ -1,0 +1,35 @@
+#!/bin/bash
+# cosmo-bt — bring up the Cosmo's internal Bluetooth (MT6631 over CONSYS) -> hci0.
+#
+# Runs after cosmo-wifi, which powers the CONSYS chip and copies this unit's
+# Bluetooth NVRAM record (nvdata /APCFG/APRDEB/BT_Addr) to /mnt/vendor/nvdata.
+# Loads hci_stp, then sets the unit's BD address from the first 6 bytes of
+# BT_Addr (stored in display order, as the WIFI MAC; same 00:03:AA prefix).
+# Without it the controller reports the chip default 00:00:46:07:88:01.
+# The address is kept by the kernel and re-sent to the chip at each power-on.
+set -u
+NV=/mnt/vendor/nvdata/APCFG/APRDEB
+say() { echo "cosmo-bt: $*"; }
+
+modprobe hci_stp || { say "modprobe hci_stp failed"; exit 1; }
+for i in $(seq 1 20); do [ -e /sys/class/bluetooth/hci0 ] && break; sleep 0.5; done
+[ -e /sys/class/bluetooth/hci0 ] || { say "no hci0 after modprobe"; exit 1; }
+
+if [ "$(stat -c %s "$NV/BT_Addr" 2>/dev/null || echo 0)" -ge 6 ]; then
+    a=$(od -An -tx1 -N6 "$NV/BT_Addr" | tr -d ' \n' | sed 's/../&:/g; s/:$//' | tr a-f A-F)
+    case "$a" in
+        00:00:00:00:00:00|FF:FF:FF:FF:FF:FF) say "WARNING: blank BT_Addr (chip default)"; exit 0 ;;
+    esac
+    # Rejected while hci0 is powered: the kernel powers it for setup on
+    # register and turns it off again after ~2 s.
+    for i in $(seq 1 20); do
+        if btmgmt --index 0 public-addr "$a" 2>&1 | grep -q 'Set Public Address complete'; then
+            say "BD address $a"; exit 0
+        fi
+        sleep 0.5
+    done
+    say "WARNING: could not set BD address $a (chip default)"
+else
+    say "WARNING: no BT_Addr record (chip default address)"
+fi
+exit 0

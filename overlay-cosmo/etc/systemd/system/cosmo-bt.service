@@ -1,0 +1,17 @@
+# Internal Bluetooth bring-up -> hci0 (/usr/local/sbin/cosmo-bt). hci_stp
+# needs the CONSYS chip powered by cosmo-wifi; bluetoothd starts after the
+# BD address is set.
+[Unit]
+Description=Cosmo internal Bluetooth (MT6631 CONSYS hci_stp) -> hci0
+After=cosmo-wifi.service systemd-modules-load.service
+Wants=cosmo-wifi.service
+Before=bluetooth.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=30
+ExecStart=/usr/local/sbin/cosmo-bt
+
+[Install]
+WantedBy=multi-user.target
