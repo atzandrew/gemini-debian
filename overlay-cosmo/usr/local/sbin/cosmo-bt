@@ -26,8 +26,10 @@ if [ "$(stat -c %s "$NV/BT_Addr" 2>/dev/null || echo 0)" -ge 6 ]; then
     # The kernel opens hci0 for setup on register. While that open is
     # running (and until its automatic power-off) mgmt reports hci0 off and
     # accepts the address, but the chip is never re-initialised, so it
-    # keeps the default. Wait for the setup open to finish, then close hci0
-    # (bluetoothd is not running yet); the next open sends the address.
+    # keeps the default. Give the setup open time to finish (up to 5 s;
+    # the kernel hides UP while its power-off is pending, so this usually
+    # runs the full 5 s), then close hci0 (bluetoothd is not running yet);
+    # the next open sends the address.
     for i in $(seq 1 20); do
         hciconfig hci0 | grep -q 'UP RUNNING' && break; sleep 0.25
     done
