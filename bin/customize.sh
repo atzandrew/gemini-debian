@@ -108,7 +108,11 @@ fi
 
 echo "    customize: user $GEMINI_USER"
 in_chroot useradd -m -s /bin/bash "$GEMINI_USER"
-for g in sudo adm video render input audio plugdev netdev dialout bluetooth; do
+# GameMode ships a polkit rule for group "gamemode" but no such group.
+if [ -f "$R/usr/share/polkit-1/rules.d/gamemode.rules" ]; then
+    in_chroot getent group gamemode >/dev/null || in_chroot groupadd -r gamemode
+fi
+for g in sudo adm video render input audio plugdev netdev dialout bluetooth gamemode; do
     if in_chroot getent group "$g" >/dev/null; then in_chroot usermod -aG "$g" "$GEMINI_USER"; fi
 done
 printf '%s:%s\n' "$GEMINI_USER" "$(cat "$S/password-hash")" | in_chroot chpasswd -e
