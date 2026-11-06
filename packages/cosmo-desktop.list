@@ -6,3 +6,8 @@
 # login.
 greetd
 tuigreet
+
+# GameMode: CPU governor to performance while a game runs (gamemoderun),
+# schedutil otherwise. glmark2 2400x1200: 409 schedutil, 448 GameMode.
+# Needs the gamemode group (bin/customize.sh).
+gamemode
