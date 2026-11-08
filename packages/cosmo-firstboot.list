@@ -1,0 +1,6 @@
+# First-boot setup, release images only (COSMO_RELEASE=1, devices/cosmo.env).
+# Calamares in OEM mode, as the Gemini (packages/extra.list); removed again
+# by gemini-first-setup cleanup after the owner's account exists.
+calamares
+calamares-settings-debian
+pkexec

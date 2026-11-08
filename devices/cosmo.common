@@ -7,3 +7,15 @@ etc/systemd/system/gemini-growfs.service
 etc/tmpfiles.d/gemini-tuigreet.conf
 etc/skel/.config/kwinrc
 etc/skel/.config/kwinoutputconfig.json
+# First-boot setup (COSMO_RELEASE=1 images; Calamares in OEM mode, as the
+# Gemini). The Cosmo has its own settings.conf (no software chooser) and
+# branding in overlay-cosmo/etc/calamares/.
+usr/local/sbin/gemini-first-setup
+etc/systemd/system/gemini-first-setup-cleanup.service
+etc/xdg/autostart/gemini-first-setup.desktop
+etc/sudoers.d/gemini-first-setup
+etc/xdg/kwinrulesrc
+etc/calamares/modules/removeuser.conf
+etc/calamares/modules/shellprocess.conf
+etc/calamares/modules/welcome.conf
+etc/calamares/modules/finished.conf

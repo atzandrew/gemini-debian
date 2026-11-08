@@ -1,0 +1,4 @@
+# Firefox from Mozilla's repository, not Debian's firefox-esr.
+Package: *
+Pin: origin packages.mozilla.org
+Pin-Priority: 1000

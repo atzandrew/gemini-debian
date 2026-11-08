@@ -1,0 +1,52 @@
+# Cosmo desktop and apps, installed WITH their Recommends (devices/cosmo.env
+# DESKTOP_LISTS), as desktop.list on the Gemini. App set chosen for the
+# beta (2026-11-08).
+#
+# KDE Plasma 6 (Wayland), as desktop.list without its two test browsers
+plasma-desktop
+plasma-workspace
+kwin-wayland
+plasma-pa
+plasma-nm
+powerdevil
+bluedevil
+breeze
+kscreen
+systemsettings
+kde-cli-tools
+polkit-kde-agent-1
+xdg-desktop-portal-kde
+qt6-wayland
+# KDE apps
+konsole
+dolphin
+kate
+gwenview
+okular
+kde-spectacle
+ark
+kcalc
+plasma-systemmonitor
+kinfocenter
+filelight
+kdeconnect
+# crash reports (DrKonqi + systemd-coredump backtraces)
+drkonqi
+systemd-coredump
+# media: video, music
+haruna
+elisa
+# app store: Flatpak apps from Flathub (remote added by bin/customize.sh)
+# and Debian updates
+plasma-discover
+plasma-discover-backend-flatpak
+flatpak
+# browser: current Firefox from Mozilla's repository
+# (overlay-cosmo/etc/apt/sources.list.d/mozilla.sources)
+firefox
+# mail, calendar, contacts
+thunderbird
+# games
+kpat
+ksudoku
+kblocks

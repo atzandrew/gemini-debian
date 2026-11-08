@@ -1,0 +1,52 @@
+# Cosmo apps, fonts and tools installed WITHOUT Recommends (devices/cosmo.env
+# EXTRA_LISTS). App set chosen for the beta (2026-11-08).
+#
+# LibreOffice: components named one by one; the metapackage's Recommends
+# would pull Java and more. kf6 = KDE file dialogs and look.
+libreoffice-writer
+libreoffice-calc
+libreoffice-impress
+libreoffice-draw
+libreoffice-kf6
+libreoffice-style-breeze
+hunspell-en-us
+# fonts: Noto for wide language coverage (CJK = Adobe Source Han under the
+# Noto name), Source Sans 3, Hanazono (rare CJK characters), Liberation
+# (metric-compatible with Arial / Times New Roman / Courier New), DejaVu
+# (some games expect it), Hack (monospace). Source Serif 4 and Source Code
+# Pro are not in Debian: overlay-cosmo/usr/share/fonts/opentype/.
+fonts-noto-core
+fonts-noto-extra
+fonts-noto-ui-core
+fonts-noto-color-emoji
+fonts-noto-cjk
+fonts-noto-cjk-extra
+fonts-adobe-sourcesans3
+fonts-hanazono
+fonts-liberation
+fonts-liberation2
+fonts-dejavu-core
+fonts-dejavu-extra
+fonts-hack
+# archives (also Ark's back ends)
+unar
+7zip
+zip
+unzip
+zstd
+xz-utils
+bzip2
+# tools
+htop
+nano
+vim-tiny
+wget
+curl
+lsof
+xdg-user-dirs
+# compressed swap in RAM
+zram-tools
+# debugging, for beta bug reports
+linux-perf
+strace
+mesa-utils

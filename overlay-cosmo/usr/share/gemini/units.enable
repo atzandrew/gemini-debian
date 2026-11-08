@@ -5,3 +5,4 @@ cosmo-wifi.service
 cosmo-bt.service
 greetd.service
 cosmo-codi.service
+gemini-first-setup-cleanup.service

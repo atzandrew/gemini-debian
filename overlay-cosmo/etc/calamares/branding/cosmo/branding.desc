@@ -1,0 +1,40 @@
+---
+componentName:   cosmo
+welcomeStyleCalamares: true
+welcomeExpandingLogo: true
+# fullscreen: the Cosmo screen (as the Gemini) is 1080x540 at 2x, smaller than 800x580
+windowExpanding: fullscreen
+windowSize: 800px,580px
+windowPlacement: center
+
+strings:
+    productName:         Debian for Cosmo Communicator
+    shortProductName:    Cosmo Debian
+    version:             13 beta
+    shortVersion:        beta
+    versionedName:       Debian 13 for Cosmo Communicator (beta)
+    shortVersionedName:  Cosmo Debian beta
+    bootloaderEntryName: Cosmo Debian
+    productUrl:          https://github.com/atzandrew/cosmo-linux618
+    supportUrl:          https://github.com/atzandrew/cosmo-linux618/issues
+    knownIssuesUrl:      https://github.com/atzandrew/cosmo-linux618#status
+    releaseNotesUrl:     https://github.com/atzandrew/cosmo-linux618/releases
+    donateUrl:           https://www.debian.org
+
+sidebar: widget
+navigation: widget
+
+images:
+    productLogo:         "debian-logo.png"
+    productIcon:         "debian-logo.png"
+    productWelcome:      "welcome.png"
+
+slideshow:               "show.qml"
+
+style:
+   SidebarBackground:    "#0c173b"
+   SidebarText:          "#FFFFFF"
+   SidebarTextCurrent:   "#fbfbfb"
+   SidebarBackgroundCurrent: "#3e77c7"
+
+slideshowAPI: 2

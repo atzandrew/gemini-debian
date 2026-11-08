@@ -1,0 +1,8 @@
+# Current Firefox from Mozilla's APT repository (Debian 13 has only ESR).
+# Key fingerprint 35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3, as published
+# at https://support.mozilla.org/kb/install-firefox-linux.
+Types: deb
+URIs: https://packages.mozilla.org/apt
+Suites: mozilla
+Components: main
+Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc

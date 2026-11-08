@@ -65,6 +65,7 @@ stage_cosmo() {
         echo "gemini-debian: $drev"
         echo "kernel: $KVER"
         echo "suite: $DEBIAN_SUITE"
+        echo "release: $COSMO_RELEASE"
     } > "$STAGE/build-info"
     echo "    kernel: $KVER, modules: $(du -sh "$STAGE/modules" | cut -f1)"
     F=$STAGE/files
@@ -78,7 +79,14 @@ stage_cosmo() {
     cp -r overlay-cosmo/. "$F/"
     sed -i "s|@USB_ADDR@|$USB_ADDR|" "$F/etc/NetworkManager/system-connections/usb0.nmconnection"
     install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
+    # First-boot setup files name the build-time account (Calamares
+    # removeuser, sudo rule, greetd automatic login).
+    grep -rl '@GEMINI_USER@' "$F" | xargs -r sed -i "s/@GEMINI_USER@/$GEMINI_USER/g"
     rm -rf "$STAGE/firstboot" && mkdir -p "$STAGE/firstboot"
+    if [ "$GEMINI_FIRST_SETUP" = 1 ]; then
+        cp firstboot/* "$STAGE/firstboot/"
+        sed -i "s/@GEMINI_USER@/$GEMINI_USER/g" "$STAGE"/firstboot/*
+    fi
     echo "    files tree: $(find "$F" -type f | wc -l) files"
 }
 
@@ -238,7 +246,7 @@ chmod 600 "$STAGE/password-hash"
 
 echo "==> 3/3 Debian $DEBIAN_SUITE rootfs (container; sudo for podman)"
 sudo podman run --rm --privileged --security-opt label=disable \
-    -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" -e DEVICE="$DEVICE" \
+    -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" -e DEVICE="$DEVICE" -e COSMO_RELEASE="${COSMO_RELEASE:-0}" \
     -v "$HERE:/work" \
     docker.io/library/debian:trixie \
     bash /work/bin/in-container.sh

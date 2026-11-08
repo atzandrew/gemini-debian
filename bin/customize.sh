@@ -38,6 +38,14 @@ if [ -n "$EXTRA" ]; then
         install -d "$R/etc/apt/preferences.d"
         install -m 644 /work/overlay/etc/apt/preferences.d/* "$R/etc/apt/preferences.d/"
     fi
+    # Cosmo: Mozilla's repository (current Firefox) and its pin, also
+    # before the installs.
+    if [ "$DEVICE" = cosmo ]; then
+        for d in keyrings sources.list.d preferences.d; do
+            install -d "$R/etc/apt/$d"
+            install -m 644 /work/overlay-cosmo/etc/apt/$d/* "$R/etc/apt/$d/"
+        done
+    fi
     export DEBIAN_FRONTEND=noninteractive
     in_chroot apt-get clean
     in_chroot apt-get update -qq
@@ -73,6 +81,14 @@ if [ "$DEVICE" = gemini ] && compgen -G "/work/out/mesa/*.deb" >/dev/null; then
     cp /work/out/mesa/*.deb /work/bin/mesa-upgrade.sh "$R/tmp/gemini-mesa/"
     in_chroot bash /tmp/gemini-mesa/mesa-upgrade.sh /tmp/gemini-mesa
     rm -rf "$R/tmp/gemini-mesa"
+fi
+
+# Cosmo: Flathub for Discover and the flatpak command (system-wide; the
+# .flatpakrepo file carries the key, so no network is needed here).
+if [ "$DEVICE" = cosmo ]; then
+    echo "    customize: Flathub remote"
+    install -D -m 644 /work/overlay-cosmo/usr/share/gemini/flathub.flatpakrepo "$R/usr/share/gemini/flathub.flatpakrepo"
+    in_chroot flatpak remote-add --system --if-not-exists flathub /usr/share/gemini/flathub.flatpakrepo
 fi
 
 echo "    customize: gemini files + services"
@@ -180,8 +196,29 @@ if [ "$DEVICE" = cosmo ]; then
         in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (desktop)"; exit 1; }
     done
     in_chroot systemctl is-enabled greetd.service >/dev/null 2>&1 || { echo "!! greetd.service not enabled"; exit 1; }
-    [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
-    echo "    customize: ok (cosmo)"
+    in_chroot flatpak remotes --system | grep -q '^flathub' || { echo "!! Flathub remote missing"; exit 1; }
+    in_chroot dpkg-query -W -f '${Version}' firefox 2>/dev/null | grep -qv esr || { echo "!! firefox (Mozilla repository) missing"; exit 1; }
+    ! in_chroot dpkg -s firefox-esr >/dev/null 2>&1 || { echo "!! firefox-esr got installed"; exit 1; }
+    for t in thunderbird libreoffice kate okular gwenview spectacle kpat ksudoku kblocks; do
+        in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (apps)"; exit 1; }
+    done
+    for f in adobe-source-serif4/SourceSerif4Variable-Roman.otf adobe-source-code-pro/SourceCodeVF-Upright.otf; do
+        [ -f "$R/usr/share/fonts/opentype/$f" ] || { echo "!! font $f missing"; exit 1; }
+    done
+    if [ "${COSMO_RELEASE:-0}" = 1 ]; then
+        # Release image: no keys, a locked setup account, Calamares at first boot.
+        [ ! -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! release image carries SSH keys"; exit 1; }
+        [ "$(in_chroot getent shadow "$GEMINI_USER" | cut -d: -f2)" = '!' ] || { echo "!! setup account password is not locked"; exit 1; }
+        grep -q '^\[initial_session\]' "$R/etc/greetd/config.toml" || { echo "!! greetd initial_session missing"; exit 1; }
+        grep -qx 'branding: cosmo' "$R/etc/calamares/settings.conf" || { echo "!! Calamares Cosmo settings missing"; exit 1; }
+        grep -qx "username: \"$GEMINI_USER\"" "$R/etc/calamares/modules/removeuser.conf" || { echo "!! Calamares removeuser does not name $GEMINI_USER"; exit 1; }
+        in_chroot sh -c "command -v calamares" >/dev/null || { echo "!! calamares missing"; exit 1; }
+        [ -x "$R/usr/local/sbin/gemini-first-setup" ] || { echo "!! gemini-first-setup missing"; exit 1; }
+        ! grep -rq '@GEMINI_USER@' "$R/etc/calamares" "$R/etc/sudoers.d" "$R/usr/local/sbin" || { echo "!! unreplaced @GEMINI_USER@"; exit 1; }
+    else
+        [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
+    fi
+    echo "    customize: ok (cosmo, release=${COSMO_RELEASE:-0})"
     exit 0
 fi
 [ -f "$R/usr/lib/modules/$KVER/extra/mt6351-gauge.ko" ] || { echo "!! mt6351-gauge.ko missing (fuel gauge)"; exit 1; }
