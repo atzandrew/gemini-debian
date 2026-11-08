@@ -42,6 +42,23 @@ if [ -d build ]; then
 fi
 mkdir -p "$STAGE" out
 
+# Gemini wallpapers: Wallpapers/gemini_NN.png (2160x1080, the panel's
+# landscape size; the Cosmo panel is the same) as Plasma wallpaper packages
+# /usr/share/wallpapers/GeminiNN, listed in System Settings -> Wallpaper.
+# gemini_01 is the default (overlay .../plasma/shells/org.kde.plasma.desktop/
+# contents/updates/gemini-wallpaper.js, etc/xdg/kscreenlockerrc).
+install_wallpapers() {
+    local w n
+    for w in Wallpapers/gemini_*.png; do
+        [ -f "$w" ] || continue
+        n=$(basename "$w" .png); n=${n#gemini_}
+        install -D -m 644 "$w" "$F/usr/share/wallpapers/Gemini$n/contents/images/2160x1080.png"
+        printf '{\n    "KPlugin": {\n        "Id": "Gemini%s",\n        "Name": "Gemini %s"\n    }\n}\n' "$n" "$n" \
+            > "$F/usr/share/wallpapers/Gemini$n/metadata.json"
+    done
+    [ -f "$F/usr/share/wallpapers/Gemini01/contents/images/2160x1080.png" ] || die "Wallpapers/gemini_01.png missing (default wallpaper)"
+}
+
 # Cosmo: kernel modules from cosmo-linux618 (out/modroot), files tree from
 # overlay-cosmo/ plus the generic Gemini files named in devices/cosmo.common.
 stage_cosmo() {
@@ -77,10 +94,11 @@ stage_cosmo() {
         install -D -m 644 "overlay/$f" "$F/$f"
     done < devices/cosmo.common
     cp -r overlay-cosmo/. "$F/"
+    install_wallpapers
     sed -i "s|@USB_ADDR@|$USB_ADDR|" "$F/etc/NetworkManager/system-connections/usb0.nmconnection"
     install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
     # First-boot setup files name the build-time account (Calamares
-    # removeuser, sudo rule, greetd automatic login).
+    # removeuser, sudo rule, SDDM automatic login).
     grep -rl '@GEMINI_USER@' "$F" | xargs -r sed -i "s/@GEMINI_USER@/$GEMINI_USER/g"
     rm -rf "$STAGE/firstboot" && mkdir -p "$STAGE/firstboot"
     if [ "$GEMINI_FIRST_SETUP" = 1 ]; then
@@ -182,18 +200,7 @@ install -D -m 644 "$NIXOS/config/keymaps/gemini-uk.map" "$F/usr/share/gemini/key
 # The "gemini" xkb layout for X (part 6), verbatim from gemini-nixos.
 install -D -m 644 "$NIXOS/config/xkb/symbols/gemini" "$F/usr/share/X11/xkb/symbols/gemini"
 install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
-# Gemini wallpapers: Wallpapers/gemini_NN.png (2160x1080, the panel's
-# landscape size) as Plasma wallpaper packages /usr/share/wallpapers/GeminiNN,
-# listed in System Settings -> Wallpaper. gemini_01 is the default (overlay
-# .../plasma/shells/org.kde.plasma.desktop/contents/updates/gemini-wallpaper.js).
-for w in Wallpapers/gemini_*.png; do
-    [ -f "$w" ] || continue
-    n=$(basename "$w" .png); n=${n#gemini_}
-    install -D -m 644 "$w" "$F/usr/share/wallpapers/Gemini$n/contents/images/2160x1080.png"
-    printf '{\n    "KPlugin": {\n        "Id": "Gemini%s",\n        "Name": "Gemini %s"\n    }\n}\n' "$n" "$n" \
-        > "$F/usr/share/wallpapers/Gemini$n/metadata.json"
-done
-[ -f "$F/usr/share/wallpapers/Gemini01/contents/images/2160x1080.png" ] || die "Wallpapers/gemini_01.png missing (default wallpaper)"
+install_wallpapers
 # Wi-Fi NVRAM (MAC + TX calibration): NOT shipped as a record. Each Gemini's
 # own is copied from its Android nvdata partition at boot
 # (gemini-wifi-nvram.service). The record gemini-nixos carries (from cjdell's

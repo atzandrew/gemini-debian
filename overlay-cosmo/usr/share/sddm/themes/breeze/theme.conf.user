@@ -1,0 +1,5 @@
+# Cosmo Communicator: the login screen shows the default desktop wallpaper
+# (Gemini 01). System Settings -> Login Screen (SDDM) rewrites this file.
+[General]
+background=/usr/share/wallpapers/Gemini01/contents/images/2160x1080.png
+type=image

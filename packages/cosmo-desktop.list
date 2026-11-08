@@ -1,11 +1,12 @@
 # Cosmo desktop extras, installed without Recommends (devices/cosmo.env
 # EXTRA_LISTS). Plasma itself comes from desktop.list (with Recommends).
 #
-# Login: greetd + tuigreet, a text greeter on tty1 as on the Gemini
-# (overlay-cosmo/etc/greetd/config.toml); Plasma (Wayland) starts after
-# login.
-greetd
-tuigreet
+# Login: SDDM with the Breeze theme on Wayland (KWin as its compositor,
+# overlay-cosmo/etc/sddm.conf.d/10-cosmo.conf); System Settings page to
+# change it. (greetd + tuigreet until 2026-11-08, as on the Gemini.)
+sddm
+sddm-theme-breeze
+kde-config-sddm
 
 # GameMode: CPU governor to performance while a game runs (gamemoderun),
 # schedutil otherwise. glmark2 2400x1200: 409 schedutil, 448 GameMode.

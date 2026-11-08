@@ -93,6 +93,14 @@ fi
 
 echo "    customize: gemini files + services"
 bash /work/bin/apply-files.sh "$R" "$S/files"
+if [ "$DEVICE" = cosmo ]; then
+    # SDDM's KWin: the same rotation and scale as the desktop default.
+    SH=$(in_chroot getent passwd sddm | cut -d: -f6)
+    [ -n "$SH" ] || { echo "!! no sddm user"; exit 1; }
+    install -d -m 755 "$R$SH/.config"
+    install -m 644 "$R/etc/skel/.config/kwinoutputconfig.json" "$R/etc/skel/.config/kwinrc" "$R$SH/.config/"
+    in_chroot chown -R sddm:sddm "$SH/.config"
+fi
 
 echo "    customize: hostname, timezone, locale"
 echo "$GEMINI_HOSTNAME" > "$R/etc/hostname"
@@ -138,7 +146,10 @@ install -m 600 "$S/authorized_keys" "$H/.ssh/authorized_keys"
 in_chroot chown -R "$GEMINI_USER:$GEMINI_USER" "/home/$GEMINI_USER/.ssh"
 # root stays locked (no password); use sudo.
 
-if [ "${GEMINI_FIRST_SETUP:-0}" = 1 ]; then
+if [ "${GEMINI_FIRST_SETUP:-0}" = 1 ] && [ "$DEVICE" = cosmo ]; then
+    echo "    customize: first-boot setup (SDDM autologin $GEMINI_USER -> Calamares)"
+    install -D -m 644 "$S/firstboot/sddm-first-setup.conf" "$R/etc/sddm.conf.d/zz-gemini-first-setup.conf"
+elif [ "${GEMINI_FIRST_SETUP:-0}" = 1 ]; then
     echo "    customize: first-boot setup (autologin $GEMINI_USER -> Calamares)"
     # greetd has one config file: append the [initial_session] block
     # (gemini-first-setup finish deletes it again).
@@ -192,15 +203,23 @@ if [ "$DEVICE" = cosmo ]; then
         in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (cosmo-wifi)"; exit 1; }
     done
     in_chroot sh -c "command -v setupcon" >/dev/null || { echo "!! console-setup missing"; exit 1; }
-    for t in greetd tuigreet startplasma-wayland kwin_wayland; do
+    for t in sddm startplasma-wayland kwin_wayland; do
         in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (desktop)"; exit 1; }
     done
-    in_chroot systemctl is-enabled greetd.service >/dev/null 2>&1 || { echo "!! greetd.service not enabled"; exit 1; }
+    in_chroot systemctl is-enabled sddm.service >/dev/null 2>&1 || { echo "!! sddm.service not enabled"; exit 1; }
+    dm=$(readlink "$R/etc/systemd/system/display-manager.service" || true)
+    [ "${dm##*/}" = sddm.service ] || { echo "!! display-manager.service is not sddm: '$dm'"; exit 1; }
+    ! in_chroot dpkg -s greetd >/dev/null 2>&1 || { echo "!! greetd got installed"; exit 1; }
+    [ -f "$R/usr/share/wayland-sessions/plasma.desktop" ] || { echo "!! no Plasma Wayland session (SDDM Session=plasma)"; exit 1; }
+    [ -f "$R/usr/share/sddm/themes/breeze/Main.qml" ] || { echo "!! SDDM Breeze theme missing"; exit 1; }
+    [ -s "$R/var/lib/sddm/.config/kwinoutputconfig.json" ] || { echo "!! SDDM greeter output config (rotation) missing"; exit 1; }
+    [ -f "$R/usr/share/wallpapers/Gemini01/contents/images/2160x1080.png" ] || { echo "!! default wallpaper missing"; exit 1; }
     in_chroot flatpak remotes --system | grep -q '^flathub' || { echo "!! Flathub remote missing"; exit 1; }
     in_chroot dpkg-query -W -f '${Version}' firefox 2>/dev/null | grep -qv esr || { echo "!! firefox (Mozilla repository) missing"; exit 1; }
     ! in_chroot dpkg -s firefox-esr >/dev/null 2>&1 || { echo "!! firefox-esr got installed"; exit 1; }
-    for t in thunderbird libreoffice kate okular gwenview spectacle kpat ksudoku kblocks; do
-        in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (apps)"; exit 1; }
+    # (by package: the games live in /usr/games, outside the chroot's PATH)
+    for t in thunderbird libreoffice-writer kate okular gwenview kde-spectacle kpat ksudoku kblocks; do
+        in_chroot dpkg -s "$t" >/dev/null 2>&1 || { echo "!! $t missing (apps)"; exit 1; }
     done
     for f in adobe-source-serif4/SourceSerif4Variable-Roman.otf adobe-source-code-pro/SourceCodeVF-Upright.otf; do
         [ -f "$R/usr/share/fonts/opentype/$f" ] || { echo "!! font $f missing"; exit 1; }
@@ -209,7 +228,7 @@ if [ "$DEVICE" = cosmo ]; then
         # Release image: no keys, a locked setup account, Calamares at first boot.
         [ ! -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! release image carries SSH keys"; exit 1; }
         [ "$(in_chroot getent shadow "$GEMINI_USER" | cut -d: -f2)" = '!' ] || { echo "!! setup account password is not locked"; exit 1; }
-        grep -q '^\[initial_session\]' "$R/etc/greetd/config.toml" || { echo "!! greetd initial_session missing"; exit 1; }
+        grep -qx "User=$GEMINI_USER" "$R/etc/sddm.conf.d/zz-gemini-first-setup.conf" || { echo "!! SDDM first-boot autologin missing"; exit 1; }
         grep -qx 'branding: cosmo' "$R/etc/calamares/settings.conf" || { echo "!! Calamares Cosmo settings missing"; exit 1; }
         grep -qx "username: \"$GEMINI_USER\"" "$R/etc/calamares/modules/removeuser.conf" || { echo "!! Calamares removeuser does not name $GEMINI_USER"; exit 1; }
         in_chroot sh -c "command -v calamares" >/dev/null || { echo "!! calamares missing"; exit 1; }

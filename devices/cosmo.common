@@ -2,11 +2,14 @@
 # relative to overlay/). Everything Cosmo-specific is in overlay-cosmo/.
 usr/local/sbin/gemini-growfs
 etc/systemd/system/gemini-growfs.service
-# Desktop (shared with the Gemini): tuigreet cache dir, KWin defaults
-# (scale 2, Rotated90, blur off; same panel size and console rotation).
-etc/tmpfiles.d/gemini-tuigreet.conf
+# Desktop (shared with the Gemini): KWin defaults (scale 2, Rotated90,
+# blur off; same panel size and console rotation).
 etc/skel/.config/kwinrc
 etc/skel/.config/kwinoutputconfig.json
+# Gemini wallpapers as the default desktop and lock screen wallpaper
+# (packages from Wallpapers/, bin/build-rootfs.sh).
+usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/gemini-wallpaper.js
+etc/xdg/kscreenlockerrc
 # First-boot setup (COSMO_RELEASE=1 images; Calamares in OEM mode, as the
 # Gemini). The Cosmo has its own settings.conf (no software chooser) and
 # branding in overlay-cosmo/etc/calamares/.

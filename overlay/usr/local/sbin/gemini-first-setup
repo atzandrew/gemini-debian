@@ -13,17 +13,19 @@
 #   gemini-first-setup status
 #
 # "Setup due" = a fresh image: greetd's config ends with the first-boot
-# [initial_session] block (only bin/customize.sh appends it, never the
-# update bundle), the done-marker doesn't exist, and the user is the
-# build-time account Calamares replaces.
+# [initial_session] block (Gemini) or SDDM has the first-boot automatic
+# login file (Cosmo) (only bin/customize.sh adds them, never the update
+# bundle), the done-marker doesn't exist, and the user is the build-time
+# account Calamares replaces.
 GREETD=/etc/greetd/config.toml
 MARK='^# gemini-first-setup BEGIN'
+SDDM_AUTOLOGIN=/etc/sddm.conf.d/zz-gemini-first-setup.conf
 DONE=/var/lib/gemini/setup-done
 CLEANUP=/var/lib/gemini/remove-calamares
 SETUP_USER="@GEMINI_USER@"
 AVATAR=/usr/share/plasma/avatars/gemini-astronaut-render.png
 
-due() { grep -q "$MARK" "$GREETD" 2>/dev/null && [ ! -e "$DONE" ]; }
+due() { { grep -q "$MARK" "$GREETD" 2>/dev/null || [ -e "$SDDM_AUTOLOGIN" ]; } && [ ! -e "$DONE" ]; }
 
 # Default avatar for accounts that have none yet (the one Calamares just
 # made). ~/.face.icon comes from /etc/skel; AccountsService is what System
@@ -55,7 +57,8 @@ start)
     [ "$(id -un)" = "$SETUP_USER" ] || exit 0
     exec sudo -n -E /usr/bin/calamares ;;
 finish)
-    sed -i "/$MARK/,\$d" "$GREETD"
+    [ ! -f "$GREETD" ] || sed -i "/$MARK/,\$d" "$GREETD"
+    rm -f "$SDDM_AUTOLOGIN"
     set_avatars
     mkdir -p "${DONE%/*}" && date -Is > "$DONE"
     touch "$CLEANUP"

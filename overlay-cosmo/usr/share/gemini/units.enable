@@ -3,6 +3,6 @@ gemini-growfs.service
 cosmo-boot-ok.service
 cosmo-wifi.service
 cosmo-bt.service
-greetd.service
+sddm.service
 cosmo-codi.service
 gemini-first-setup-cleanup.service
