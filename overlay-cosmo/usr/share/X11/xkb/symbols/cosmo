@@ -17,6 +17,11 @@ partial hidden alphanumeric_keys modifier_keys
 xkb_symbols "modifiers" {
     key <LWIN> { [ISO_Level3_Shift ] };
     modifier_map Mod5 { ISO_Level3_Shift };
+    // Fn+Alt = Super (the Cosmo has no Super key): Alt alone stays Alt.
+    key <LALT> { type = "FOUR_LEVEL",
+                 symbols[Group1] = [ Alt_L, Meta_L, Super_L, Super_L ],
+                 actions[Group1] = [ SetMods(modifiers=Mod1), SetMods(modifiers=Mod1),
+                                     SetMods(modifiers=Mod4), SetMods(modifiers=Mod4) ] };
 
 };
 
