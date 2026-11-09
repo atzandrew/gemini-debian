@@ -32,9 +32,9 @@ images:
 slideshow:               "show.qml"
 
 style:
-   SidebarBackground:    "#0c173b"
-   SidebarText:          "#FFFFFF"
-   SidebarTextCurrent:   "#fbfbfb"
-   SidebarBackgroundCurrent: "#3e77c7"
+   SidebarBackground:    "#120f22"
+   SidebarText:          "#a9a3c9"
+   SidebarTextCurrent:   "#ffffff"
+   SidebarBackgroundCurrent: "#3e4c9a"
 
 slideshowAPI: 2

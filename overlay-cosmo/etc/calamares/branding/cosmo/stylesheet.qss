@@ -1,0 +1,122 @@
+/*
+ * Cosmo Calamares theme: dark, colours from the default wallpaper
+ * (Wallpapers/gemini_01.png: night violet #19152b, indigo #212d57,
+ * blue #325492, rose #ab6382).
+ */
+QWidget {
+    background: transparent;
+    color: #eceaf6;
+    selection-background-color: #4e6bae;
+    selection-color: #ffffff;
+}
+#mainApp {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #19152b, stop:0.55 #1a1d3f, stop:1 #2a1a3a);
+}
+#sidebarApp, #sidebarMenuApp {
+    background: #120f22;
+    border: none;
+}
+QLabel { background: transparent; }
+QLabel:disabled { color: #8d87ad; }
+
+QLineEdit, QComboBox, QSpinBox, QTextEdit, QPlainTextEdit {
+    background: #221d3c;
+    border: 1px solid #3a3466;
+    border-radius: 8px;
+    padding: 4px 8px;
+    color: #eceaf6;
+}
+QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
+    border: 1px solid #6f8fe0;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    border: none;
+    width: 26px;
+}
+QComboBox::down-arrow { image: url(/etc/calamares/branding/cosmo/down.png); width: 12px; height: 8px; }
+QComboBox QAbstractItemView, QListView, QTreeView, QTableView {
+    background: #1c1833;
+    border: 1px solid #3a3466;
+    border-radius: 8px;
+    outline: none;
+}
+QListView::item, QTreeView::item { padding: 4px 6px; border-radius: 6px; }
+QListView::item:hover, QTreeView::item:hover { background: #2a2550; }
+QListView::item:selected, QTreeView::item:selected,
+QComboBox QAbstractItemView::item:selected {
+    background: #3e4c9a;
+    color: #ffffff;
+}
+QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; border: none; }
+QScrollBar:vertical { background: transparent; width: 8px; margin: 2px; }
+QScrollBar::handle:vertical { background: #3a3466; border-radius: 4px; min-height: 24px; }
+QScrollBar:horizontal { background: transparent; height: 8px; margin: 2px; }
+QScrollBar::handle:horizontal { background: #3a3466; border-radius: 4px; min-width: 24px; }
+QScrollBar::add-line, QScrollBar::sub-line,
+QScrollBar::add-page, QScrollBar::sub-page { background: none; border: none; width: 0; height: 0; }
+
+QPushButton {
+    background: #2a2550;
+    border: 1px solid #3a3466;
+    border-radius: 10px;
+    padding: 5px 14px;
+    color: #eceaf6;
+}
+QPushButton:hover { background: #352f63; border-color: #4e4a8a; }
+QPushButton:pressed { background: #201b40; }
+QPushButton:disabled { color: #6f6a90; background: #1e1a36; border-color: #2a2550; }
+#view-button-next {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #4e6bae, stop:1 #a4588a);
+    border: none;
+    color: #ffffff;
+    font-weight: bold;
+}
+#view-button-next:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #5f7cc0, stop:1 #b86a9c);
+}
+#view-button-next:disabled { background: #2a2550; color: #6f6a90; }
+
+QCheckBox, QRadioButton { spacing: 8px; }
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 16px; height: 16px;
+    border: 1px solid #4e4a8a; background: #221d3c;
+}
+QCheckBox::indicator { border-radius: 4px; }
+QRadioButton::indicator { border-radius: 8px; }
+QCheckBox::indicator:checked, QRadioButton::indicator:checked {
+    background: #6f8fe0; border-color: #6f8fe0;
+}
+QProgressBar {
+    background: #221d3c; border: none; border-radius: 5px;
+    height: 10px; text-align: center; color: transparent;
+}
+QProgressBar::chunk {
+    border-radius: 5px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #4e6bae, stop:1 #a4588a);
+}
+QToolTip {
+    background: #221d3c; color: #eceaf6;
+    border: 1px solid #3a3466; border-radius: 6px; padding: 4px;
+}
+QFrame[frameShape="4"], QFrame[frameShape="5"] { color: #3a3466; }
+
+/* Welcome page */
+#mainText { font-size: 9pt; }
+#languageIcon { max-width: 0px; min-width: 0px; }
+#supportButton, #knownIssuesButton, #releaseNotesButton, #donateButton {
+    qproperty-iconSize: 0px 0px;
+    background: transparent;
+    border: 1px solid #3a3466;
+    border-radius: 14px;
+    padding: 4px 14px;
+    color: #c9c4e6;
+}
+#supportButton:hover, #knownIssuesButton:hover, #releaseNotesButton:hover {
+    background: #2a2550; color: #ffffff;
+}
