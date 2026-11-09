@@ -49,6 +49,14 @@ if [ -n "$EXTRA" ]; then
     export DEBIAN_FRONTEND=noninteractive
     in_chroot apt-get clean
     in_chroot apt-get update -qq
+    if [ "$DEVICE" = cosmo ]; then
+        MESA=$(in_chroot dpkg-query -W -f '${Package} ${Status} ${source:Package}\n' 2>/dev/null | awk '$4=="installed" && $5=="mesa" {print $1}' | xargs)
+        if [ -n "$MESA" ]; then
+            echo "    customize: Mesa from trixie-backports: $MESA"
+            # shellcheck disable=SC2086
+            in_chroot apt-get install -y -q --no-install-recommends $MESA
+        fi
+    fi
     # shellcheck disable=SC2086
     in_chroot apt-get install -y -q --no-install-recommends --download-only $EXTRA
     cp "$R"/var/cache/apt/archives/*.deb "$B/debs/" 2>/dev/null || true
@@ -221,10 +229,8 @@ if [ "$DEVICE" = cosmo ]; then
     [ "$(readlink "$R/etc/systemd/system/smartmontools.service")" = /dev/null ] || { echo "!! smartmontools not masked (eMMC has no SMART)"; exit 1; }
     in_chroot dpkg-query -W -f '${Version}' firefox 2>/dev/null | grep -qv esr || { echo "!! firefox (Mozilla repository) missing"; exit 1; }
     ! in_chroot dpkg -s firefox-esr >/dev/null 2>&1 || { echo "!! firefox-esr got installed"; exit 1; }
-    # Firefox default: WebGL off (2026-11-08: the browser's main process
-    # crashed right after WebGL started on panfrost / Mesa 25.0.7; GPU
-    # WebRender with WebGL off was stable). A default, not a lock.
-    grep -q '"webgl.disabled"' "$R/etc/firefox/policies/policies.json" || { echo "!! Firefox policy (WebGL off) missing"; exit 1; }
+    # Mesa from trixie-backports (etc/apt/preferences.d/mesa-backports).
+    in_chroot dpkg-query -W -f '${Version}' mesa-libgallium | grep -q '~bpo13' || { echo "!! Mesa is not the trixie-backports build"; exit 1; }
     # (by package: the games live in /usr/games, outside the chroot's PATH)
     for t in thunderbird libreoffice-writer kate okular gwenview kde-spectacle kpat ksudoku kblocks; do
         in_chroot dpkg -s "$t" >/dev/null 2>&1 || { echo "!! $t missing (apps)"; exit 1; }
