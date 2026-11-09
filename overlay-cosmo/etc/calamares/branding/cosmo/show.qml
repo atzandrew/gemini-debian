@@ -32,19 +32,11 @@ Presentation
     Slide {
         Image {
             id: background1
+            // Cosmo slide (936x560 = 2x for the 2x-scaled panel), text included
             source: "slide1.png"
-            width: 467; height: 280
+            width: 468; height: 280
             fillMode: Image.PreserveAspectFit
             anchors.centerIn: parent
-        }
-        Text {
-            anchors.horizontalCenter: background1.horizontalCenter
-            anchors.top: background1.bottom
-            text: qsTr("Welcome to Debian GNU/Linux.<br/>"+
-                  "The rest of the installation is automated and should complete in a few minutes.")
-            wrapMode: Text.WordWrap
-            width: 600
-            horizontalAlignment: Text.Center
         }
     }
 
