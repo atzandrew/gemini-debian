@@ -1,0 +1,10 @@
+{
+  "policies": {
+    "Preferences": {
+      "webgl.disabled": {
+        "Value": true,
+        "Status": "default"
+      }
+    }
+  }
+}

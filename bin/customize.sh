@@ -221,6 +221,10 @@ if [ "$DEVICE" = cosmo ]; then
     [ "$(readlink "$R/etc/systemd/system/smartmontools.service")" = /dev/null ] || { echo "!! smartmontools not masked (eMMC has no SMART)"; exit 1; }
     in_chroot dpkg-query -W -f '${Version}' firefox 2>/dev/null | grep -qv esr || { echo "!! firefox (Mozilla repository) missing"; exit 1; }
     ! in_chroot dpkg -s firefox-esr >/dev/null 2>&1 || { echo "!! firefox-esr got installed"; exit 1; }
+    # Firefox default: WebGL off (2026-11-08: the browser's main process
+    # crashed right after WebGL started on panfrost / Mesa 25.0.7; GPU
+    # WebRender with WebGL off was stable). A default, not a lock.
+    grep -q '"webgl.disabled"' "$R/etc/firefox/policies/policies.json" || { echo "!! Firefox policy (WebGL off) missing"; exit 1; }
     # (by package: the games live in /usr/games, outside the chroot's PATH)
     for t in thunderbird libreoffice-writer kate okular gwenview kde-spectacle kpat ksudoku kblocks; do
         in_chroot dpkg -s "$t" >/dev/null 2>&1 || { echo "!! $t missing (apps)"; exit 1; }
