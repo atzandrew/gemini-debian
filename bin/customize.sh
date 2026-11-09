@@ -173,6 +173,15 @@ fi
 
 echo "    customize: base services"
 in_chroot systemctl enable ssh.service NetworkManager.service systemd-timesyncd.service
+if [ "$DEVICE" = cosmo ]; then
+    # Host-specific files must not ship. SSH host keys: each Cosmo makes its
+    # own at first start (sshd-keygen.service, drop-in in overlay-cosmo).
+    # resolv.conf: a copy of the build host's; NetworkManager writes it on
+    # the device.
+    rm -f "$R"/etc/ssh/ssh_host_*
+    rm -f "$R/etc/resolv.conf"
+    : > "$R/etc/resolv.conf"
+fi
 
 echo "    customize: boot-handoff checks"
 # The initrd tests [ -x /newroot/sbin/init ] and [ -f /newroot/etc/os-release ]
@@ -198,6 +207,10 @@ if [ "$DEVICE" = cosmo ]; then
     for t in sshd nmcli dnsmasq resize2fs; do
         in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing"; exit 1; }
     done
+    ! compgen -G "$R/etc/ssh/ssh_host_*" >/dev/null || { echo "!! image carries SSH host keys (every Cosmo would share them)"; exit 1; }
+    [ -f "$R/etc/resolv.conf" ] && [ ! -L "$R/etc/resolv.conf" ] && [ ! -s "$R/etc/resolv.conf" ] || { echo "!! /etc/resolv.conf is not empty (build host DNS)"; exit 1; }
+    grep -qx 'ConditionPathExists=!/etc/ssh/ssh_host_ed25519_key' "$R/etc/systemd/system/sshd-keygen.service.d/missing-keys.conf" || { echo "!! sshd-keygen drop-in missing (no host keys at first start)"; exit 1; }
+    in_chroot systemctl is-enabled sshd-keygen.service >/dev/null 2>&1 || { echo "!! sshd-keygen.service not enabled"; exit 1; }
     for u in ssh.service NetworkManager.service cosmo-boot-ok.service gemini-growfs.service cosmo-wifi.service; do
         in_chroot systemctl is-enabled "$u" >/dev/null 2>&1 || { echo "!! $u not enabled"; exit 1; }
     done
