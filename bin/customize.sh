@@ -232,6 +232,7 @@ if [ "$DEVICE" = cosmo ]; then
         [ "$(in_chroot getent shadow "$GEMINI_USER" | cut -d: -f2)" = '!' ] || { echo "!! setup account password is not locked"; exit 1; }
         grep -qx "User=$GEMINI_USER" "$R/etc/sddm.conf.d/zz-gemini-first-setup.conf" || { echo "!! SDDM first-boot autologin missing"; exit 1; }
         grep -qx 'branding: cosmo' "$R/etc/calamares/settings.conf" || { echo "!! Calamares Cosmo settings missing"; exit 1; }
+        ! grep -qx '  - keyboard' "$R/etc/calamares/settings.conf" || { echo "!! Calamares keyboard page would replace the cosmo layout"; exit 1; }
         grep -qx "username: \"$GEMINI_USER\"" "$R/etc/calamares/modules/removeuser.conf" || { echo "!! Calamares removeuser does not name $GEMINI_USER"; exit 1; }
         in_chroot sh -c "command -v calamares" >/dev/null || { echo "!! calamares missing"; exit 1; }
         [ -x "$R/usr/local/sbin/gemini-first-setup" ] || { echo "!! gemini-first-setup missing"; exit 1; }
