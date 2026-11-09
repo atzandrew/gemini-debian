@@ -2,6 +2,8 @@
 gemini-growfs.service
 cosmo-boot-ok.service
 cosmo-wifi.service
+gemini-wifi-fixup.service
+gemini-wifi-fixup.path
 cosmo-bt.service
 sddm.service
 cosmo-codi.service

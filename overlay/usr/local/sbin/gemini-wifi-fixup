@@ -1,7 +1,8 @@
 #!/bin/bash
-# gemini-wifi-fixup — make saved Wi-Fi profiles work with the Gemini's
-# MT6630 (wlan_gen3) driver. Run by gemini-wifi-fixup.path whenever a profile
-# in /etc/NetworkManager/system-connections changes, and once at boot.
+# gemini-wifi-fixup — make saved Wi-Fi profiles work with the wlan_gen3
+# driver (Gemini MT6630, Cosmo MT6771). Run by gemini-wifi-fixup.path
+# whenever a profile in /etc/NetworkManager/system-connections changes,
+# and once at boot.
 #
 # WPA2/WPA3 mixed ("transition mode") networks: Plasma sees SAE in the
 # beacon and saves the profile as WPA3 (key-mgmt sae), but wpa_supplicant

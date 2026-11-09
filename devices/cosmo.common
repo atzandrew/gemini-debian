@@ -22,3 +22,9 @@ etc/calamares/modules/removeuser.conf
 etc/calamares/modules/shellprocess.conf
 etc/calamares/modules/welcome.conf
 etc/calamares/modules/finished.conf
+# Wi-Fi: the Cosmo uses the same wlan_gen3 driver as the Gemini, which has
+# no WPA3 (SAE). The fix-up rewrites WPA2/WPA3 mixed-network profiles that
+# Plasma saves as WPA3 to WPA2.
+usr/local/sbin/gemini-wifi-fixup
+etc/systemd/system/gemini-wifi-fixup.service
+etc/systemd/system/gemini-wifi-fixup.path
