@@ -1,0 +1,19 @@
+#!/bin/sh
+# cosmo-audio-route: switch on the Cosmo's playback route at boot.
+#
+# The card ("cosmo", machine driver mt6771-cosmo) is a DPCM card: the
+# playback stream (DL1) reaches the MT6358 codec only through mixer
+# switches, and the headphone muxes feed the headphones and, through the
+# two amps, the speaker (docs/session-log.md A2 in cosmo-linux618). The
+# kernel starts with all of them off, so a fresh install had no sound
+# ("no backend DAIs enabled for Playback_1") and PipeWire offered only an
+# "Off" profile. Routing only: volumes are left to alsactl's saved state.
+CARD=cosmo
+i=0
+while [ ! -e /proc/asound/$CARD ] && [ $i -lt 20 ]; do sleep 0.5; i=$((i + 1)); done
+[ -e /proc/asound/$CARD ] || { echo "cosmo-audio-route: no card $CARD" >&2; exit 1; }
+amixer -q -c $CARD cset name='ADDA_DL_CH1 DL1_CH1' on
+amixer -q -c $CARD cset name='ADDA_DL_CH2 DL1_CH2' on
+amixer -q -c $CARD cset name='HPL Mux' 'Audio Playback'
+amixer -q -c $CARD cset name='HPR Mux' 'Audio Playback'
+echo "cosmo-audio-route: DL1 -> ADDA -> HPL/HPR (Audio Playback) on"

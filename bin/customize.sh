@@ -216,6 +216,8 @@ if [ "$DEVICE" = cosmo ]; then
     [ -f "$R/usr/share/wallpapers/Gemini01/contents/images/2160x1080.png" ] || { echo "!! default wallpaper missing"; exit 1; }
     in_chroot flatpak remotes --system | grep -q '^flathub' || { echo "!! Flathub remote missing"; exit 1; }
     grep -qx 'CriticalPowerAction=PowerOff' "$R/etc/UPower/UPower.conf" || { echo "!! UPower does not power off at critical battery"; exit 1; }
+    in_chroot systemctl is-enabled cosmo-audio-route.service >/dev/null 2>&1 || { echo "!! cosmo-audio-route.service not enabled (no sound on a fresh install)"; exit 1; }
+    in_chroot sh -c "command -v amixer" >/dev/null || { echo "!! amixer missing (cosmo-audio-route)"; exit 1; }
     [ "$(readlink "$R/etc/systemd/system/smartmontools.service")" = /dev/null ] || { echo "!! smartmontools not masked (eMMC has no SMART)"; exit 1; }
     in_chroot dpkg-query -W -f '${Version}' firefox 2>/dev/null | grep -qv esr || { echo "!! firefox (Mozilla repository) missing"; exit 1; }
     ! in_chroot dpkg -s firefox-esr >/dev/null 2>&1 || { echo "!! firefox-esr got installed"; exit 1; }

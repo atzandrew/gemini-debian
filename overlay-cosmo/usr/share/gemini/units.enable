@@ -6,3 +6,4 @@ cosmo-bt.service
 sddm.service
 cosmo-codi.service
 gemini-first-setup-cleanup.service
+cosmo-audio-route.service

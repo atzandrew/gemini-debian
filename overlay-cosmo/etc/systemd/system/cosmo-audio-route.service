@@ -1,0 +1,13 @@
+[Unit]
+Description=Cosmo playback route (DL1 -> codec -> headphones/speaker)
+# After the saved mixer state is restored, so the route always ends up on.
+After=alsa-restore.service alsa-state.service sound.target
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/cosmo-audio-route
+
+[Install]
+WantedBy=multi-user.target
