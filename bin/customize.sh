@@ -215,6 +215,8 @@ if [ "$DEVICE" = cosmo ]; then
     [ -s "$R/var/lib/sddm/.config/kwinoutputconfig.json" ] || { echo "!! SDDM greeter output config (rotation) missing"; exit 1; }
     [ -f "$R/usr/share/wallpapers/Gemini01/contents/images/2160x1080.png" ] || { echo "!! default wallpaper missing"; exit 1; }
     in_chroot flatpak remotes --system | grep -q '^flathub' || { echo "!! Flathub remote missing"; exit 1; }
+    grep -qx 'CriticalPowerAction=PowerOff' "$R/etc/UPower/UPower.conf" || { echo "!! UPower does not power off at critical battery"; exit 1; }
+    [ "$(readlink "$R/etc/systemd/system/smartmontools.service")" = /dev/null ] || { echo "!! smartmontools not masked (eMMC has no SMART)"; exit 1; }
     in_chroot dpkg-query -W -f '${Version}' firefox 2>/dev/null | grep -qv esr || { echo "!! firefox (Mozilla repository) missing"; exit 1; }
     ! in_chroot dpkg -s firefox-esr >/dev/null 2>&1 || { echo "!! firefox-esr got installed"; exit 1; }
     # (by package: the games live in /usr/games, outside the chroot's PATH)

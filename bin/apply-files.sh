@@ -42,7 +42,7 @@ fi
 
 # Image build: use the target's own systemctl inside its chroot (the build
 # container has none). Live system: plain systemctl.
-# UPower (from gemini-nixos services/plumbing.nix): the % is a VOLTAGE-based
+# UPower (from gemini-nixos services/plumbing.nix): on the Gemini the % is a VOLTAGE-based
 # estimate (no fuel gauge), so never let UPower act on "critical" -- its
 # default (hibernate/suspend) hangs this device. gemini-battery-guard is the
 # only trusted poweroff (3.50 V). Thresholds match the NixOS tuning.
@@ -53,8 +53,15 @@ if [ -f "$UP" ]; then
     setkey PercentageLow 15
     setkey PercentageCritical 5
     setkey PercentageAction 2
-    setkey AllowRiskyCriticalPowerAction true
-    setkey CriticalPowerAction Ignore
+    if [ "${DEVICE:-gemini}" = cosmo ]; then
+        # Cosmo: a real fuel gauge (mt6358-gauge) and no battery guard, so
+        # UPower does the clean power-off at PercentageAction.
+        setkey AllowRiskyCriticalPowerAction false
+        setkey CriticalPowerAction PowerOff
+    else
+        setkey AllowRiskyCriticalPowerAction true
+        setkey CriticalPowerAction Ignore
+    fi
 fi
 
 # KWallet (2026-10-19): unlock the user's wallet with the login password, as

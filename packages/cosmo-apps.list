@@ -36,7 +36,8 @@ unzip
 zstd
 xz-utils
 bzip2
-# tools
+# tools (alsa-utils: aplay/amixer for sound reports)
+alsa-utils
 htop
 nano
 vim-tiny

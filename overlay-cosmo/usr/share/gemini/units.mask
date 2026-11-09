@@ -1,0 +1,8 @@
+# Masked by bin/apply-files.sh (Cosmo image), as on the Gemini.
+# Hibernate needs swap + a resume path this device doesn't have.
+hibernate.target
+hybrid-sleep.target
+suspend-then-hibernate.target
+# smartmontools (pulled in by Plasma's disk monitor): the eMMC has no SMART,
+# so smartd fails at every boot ("NO devices found to scan").
+smartmontools.service
