@@ -327,8 +327,20 @@ def main():
     ctl = open_ctl()
     lid = open_input(LID)
     keys = open_input(PMIC_KEYS)
+    lid_shut = None
     if lid is not None:
-        keyboard_inhibit(lid_closed_now(lid))
+        lid_shut = lid_closed_now(lid)
+        keyboard_inhibit(lid_shut)
+
+    def lid_changed(closed):
+        nonlocal lid_shut
+        lid_shut = closed
+        keyboard_inhibit(closed)
+        if closed:
+            link.wake()
+        else:
+            link.send(INFO_COVER_STATUS, u16(1))
+
     woke = False
     start = time.monotonic()
     last_bat = None
@@ -340,11 +352,15 @@ def main():
         if lid is not None and lid in r:
             for closed in events(lid, EV_SW, SW_LID):
                 log("lid", "closed" if closed else "opened")
-                keyboard_inhibit(closed)
-                if closed:
-                    link.wake()
-                else:
-                    link.send(INFO_COVER_STATUS, u16(1))
+                lid_changed(bool(closed))
+        # A lid event can be missed across suspend (seen 2026-11-09: the
+        # keyboard stayed inhibited with the lid open), so check the
+        # kernel's switch state on every pass as well.
+        if lid is not None:
+            closed = lid_closed_now(lid)
+            if closed != lid_shut:
+                log("lid", "closed" if closed else "opened", "(state check)")
+                lid_changed(closed)
         if keys is not None and keys in r:
             for value in events(keys, EV_KEY, KEY_PROG1):
                 if value == 1:
