@@ -211,6 +211,7 @@ if [ "$DEVICE" = cosmo ]; then
     [ -f "$R/etc/resolv.conf" ] && [ ! -L "$R/etc/resolv.conf" ] && [ ! -s "$R/etc/resolv.conf" ] || { echo "!! /etc/resolv.conf is not empty (build host DNS)"; exit 1; }
     grep -qx 'ConditionPathExists=!/etc/ssh/ssh_host_ed25519_key' "$R/etc/systemd/system/sshd-keygen.service.d/missing-keys.conf" || { echo "!! sshd-keygen drop-in missing (no host keys at first start)"; exit 1; }
     in_chroot systemctl is-enabled sshd-keygen.service >/dev/null 2>&1 || { echo "!! sshd-keygen.service not enabled"; exit 1; }
+    ! grep -qiE '^(After|Wants|Requires|BindsTo)=.*ssh' "$R/etc/systemd/system/cosmo-boot-ok.service" || { echo "!! cosmo-boot-ok depends on SSH (SSH off would send every other start to rescue)"; exit 1; }
     for u in ssh.service NetworkManager.service cosmo-boot-ok.service gemini-growfs.service cosmo-wifi.service; do
         in_chroot systemctl is-enabled "$u" >/dev/null 2>&1 || { echo "!! $u not enabled"; exit 1; }
     done
