@@ -71,8 +71,13 @@ stage_cosmo() {
     mkdir -p "$STAGE/modules" "$STAGE/firmware"
     cp -r "$MODS/$KVER" "$STAGE/modules/"
     echo "$KVER" > "$STAGE/kver"
-    krev=$(git -C "$K" rev-parse --short HEAD 2>/dev/null || echo "?")
-    [ -z "$(git -C "$K" status --porcelain --untracked-files=no 2>/dev/null)" ] || krev="$krev +uncommitted changes"
+    # The commit the modules were built from (written by build-kernel.sh),
+    # not whatever the checkout is on now. Older module trees lack the file.
+    if [ -f "$K/out/modroot/cosmo-linux618-rev" ]; then
+        krev=$(cat "$K/out/modroot/cosmo-linux618-rev")
+    else
+        krev="unknown (modules built before cosmo-linux618-rev; checkout is $(git -C "$K" rev-parse --short HEAD 2>/dev/null || echo "?"))"
+    fi
     drev=$(git -C "$HERE" rev-parse --short HEAD 2>/dev/null || echo "?")
     [ -z "$(git -C "$HERE" status --porcelain --untracked-files=no -- bin config.env devices overlay-cosmo packages 2>/dev/null)" ] || drev="$drev +uncommitted changes"
     {
