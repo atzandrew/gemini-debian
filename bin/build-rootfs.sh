@@ -99,6 +99,24 @@ stage_cosmo() {
         install -D -m 644 "overlay/$f" "$F/$f"
     done < devices/cosmo.common
     cp -r overlay-cosmo/. "$F/"
+    # Front camera: libcamera tuning and configuration from cosmo-linux618
+    # (single source), and its libcamera packages if they were built
+    # (userspace/libcamera/build-libcamera.sh with /out = $K/out/libcamera).
+    install -D -m 644 "$K/userspace/libcamera/gc5035.yaml" "$F/usr/share/libcamera/ipa/simple/gc5035.yaml"
+    install -D -m 644 "$K/userspace/libcamera/configuration.yaml" "$F/etc/libcamera/configuration.yaml"
+    rm -rf "$STAGE/libcamera" && mkdir -p "$STAGE/libcamera"
+    for p in libcamera0.7 libcamera-ipa libcamera-tools libcamera-v4l2 gstreamer1.0-libcamera; do
+        for d in "$K"/out/libcamera/${p}_*_arm64.deb; do
+            [ -f "$d" ] && cp "$d" "$STAGE/libcamera/"
+        done
+    done
+    if compgen -G "$STAGE/libcamera/*.deb" >/dev/null; then
+        echo "    libcamera (Cosmo build): $(ls "$STAGE/libcamera" | sed 's/_arm64.deb//' | xargs)"
+    elif [ "$COSMO_RELEASE" = 1 ]; then
+        die "no Cosmo libcamera packages in $K/out/libcamera (front camera; see cosmo-linux618 userspace/libcamera)"
+    else
+        echo "    !! no Cosmo libcamera packages in $K/out/libcamera: the front camera will not be detected"
+    fi
     install_wallpapers
     sed -i "s|@USB_ADDR@|$USB_ADDR|" "$F/etc/NetworkManager/system-connections/usb0.nmconnection"
     install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"

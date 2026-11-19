@@ -6,3 +6,7 @@ console-setup
 # Cover display link (cosmo-codi): Python and gpioset for the STM32 reset.
 python3
 gpiod
+# Audio: UCM profile for the Cosmo card (overlay usr/share/alsa/ucm2/conf.d/cosmo).
+alsa-ucm-conf
+# Front camera through PipeWire (libcamera plugin; PipeWire from backports).
+libspa-0.2-libcamera

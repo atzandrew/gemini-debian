@@ -1,4 +1,5 @@
-# Debian 13 backports: used only for Mesa (etc/apt/preferences.d/mesa-backports).
+# Debian 13 backports: used only for Mesa, PipeWire/WirePlumber and libcamera
+# (etc/apt/preferences.d/mesa-backports, pipewire-backports).
 Types: deb
 URIs: http://deb.debian.org/debian
 Suites: trixie-backports

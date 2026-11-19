@@ -56,6 +56,20 @@ if [ -n "$EXTRA" ]; then
             # shellcheck disable=SC2086
             in_chroot apt-get install -y -q --no-install-recommends $MESA
         fi
+        PW=$(in_chroot dpkg-query -W -f '${Package} ${Status} ${source:Package}\n' 2>/dev/null | awk '$4=="installed" && ($5=="pipewire" || $5=="wireplumber") {print $1}' | xargs)
+        if [ -n "$PW" ]; then
+            echo "    customize: PipeWire/WirePlumber from trixie-backports: $PW"
+            # shellcheck disable=SC2086
+            in_chroot apt-get install -y -q --no-install-recommends $PW
+        fi
+        # Front camera: the Cosmo libcamera build (staged by build-rootfs.sh).
+        if compgen -G "$S/libcamera/*.deb" >/dev/null; then
+            mkdir -p "$R/tmp/cosmo-libcamera"
+            cp "$S"/libcamera/*.deb "$R/tmp/cosmo-libcamera/"
+            echo "    customize: Cosmo libcamera: $(ls "$S/libcamera" | xargs)"
+            in_chroot sh -c 'apt-get install -y -q --no-install-recommends /tmp/cosmo-libcamera/*.deb'
+            rm -rf "$R/tmp/cosmo-libcamera"
+        fi
     fi
     # shellcheck disable=SC2086
     in_chroot apt-get install -y -q --no-install-recommends --download-only $EXTRA
@@ -245,6 +259,14 @@ if [ "$DEVICE" = cosmo ]; then
     ! in_chroot dpkg -s firefox-esr >/dev/null 2>&1 || { echo "!! firefox-esr got installed"; exit 1; }
     # Mesa from trixie-backports (etc/apt/preferences.d/mesa-backports).
     in_chroot dpkg-query -W -f '${Version}' mesa-libgallium | grep -q '~bpo13' || { echo "!! Mesa is not the trixie-backports build"; exit 1; }
+    # PipeWire from trixie-backports (etc/apt/preferences.d/pipewire-backports).
+    in_chroot dpkg-query -W -f '${Version}' pipewire | grep -q '~bpo13' || { echo "!! PipeWire is not the trixie-backports build"; exit 1; }
+    in_chroot dpkg -s alsa-ucm-conf >/dev/null 2>&1 || { echo "!! alsa-ucm-conf missing (speaker at -10 dB without the Cosmo UCM profile)"; exit 1; }
+    [ -f "$R/usr/share/alsa/ucm2/conf.d/cosmo/HiFi.conf" ] || { echo "!! Cosmo UCM profile missing"; exit 1; }
+    [ -f "$R/usr/share/libcamera/ipa/simple/gc5035.yaml" ] || { echo "!! GC5035 libcamera tuning file missing"; exit 1; }
+    if [ "${COSMO_RELEASE:-0}" = 1 ]; then
+        in_chroot dpkg-query -W -f '${Version}' libcamera0.7 | grep -q 'cosmo' || { echo "!! libcamera is not the Cosmo build (front camera)"; exit 1; }
+    fi
     # (by package: the games live in /usr/games, outside the chroot's PATH)
     for t in thunderbird libreoffice-writer kate okular gwenview kde-spectacle kpat ksudoku kblocks; do
         in_chroot dpkg -s "$t" >/dev/null 2>&1 || { echo "!! $t missing (apps)"; exit 1; }

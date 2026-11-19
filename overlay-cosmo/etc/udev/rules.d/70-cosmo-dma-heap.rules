@@ -1,0 +1,3 @@
+# libcamera's software ISP (front camera) allocates its buffers from the
+# dma-buf heaps; by default they are root-only.
+SUBSYSTEM=="dma_heap", GROUP="video", MODE="0660"
