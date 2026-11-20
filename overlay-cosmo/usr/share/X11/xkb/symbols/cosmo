@@ -3,14 +3,15 @@
 // Trimmed from the Gemian project's xkeyboard-config
 // (github.com/gemian/xkeyboard-config, symbols/planet_vndr/cosmo; a fork of
 // freedesktop xkeyboard-config, MIT licence): the shared modifier and
-// common-key blocks, the UK base and the US variant. The Japanese (Kana)
-// and other regional variants are left out.
+// common-key blocks, the UK base, and the US, German, Swiss German and
+// Austrian variants. The other regional variants are left out.
 //
 // Kernel side (cosmo-linux618 aw9523-keypad, stock keymap): Fn = matrix
 // (4,3) = KEY_LEFTMETA -> <LWIN> -> ISO_Level3_Shift. Level 3 is the Fn
 // layer, level 4 Fn+Shift.
 //
 // Select with XKBLAYOUT=cosmo XKBVARIANT=us (etc/default/keyboard).
+// German-language variants: de, ch-de, at.
 
 
 partial hidden alphanumeric_keys modifier_keys
@@ -109,4 +110,71 @@ xkb_symbols "us" {
 
     key <AB07>  { [         m,          M,   apostrophe, dead_grave ] };
 
+};
+
+partial alphanumeric_keys
+xkb_symbols "de" {
+    include "cosmo(gb)"
+
+    name[Group1]="Cosmo German";
+
+    key <AE01>  { [         1,    exclam,   asciitilde,   F1 ] };
+    key <AE03>  { [         3,     U00A7,    backslash,   F3 ] };
+    key <AE06>  { [         6, ampersand,      greater,   F6 ] };
+    key <AE07>  { [         7,     slash,    braceleft,   F7 ] };
+    key <AE08>  { [         8, parenleft,  bracketleft,   F8 ] };
+    key <AE09>  { [         9,parenright, bracketright,   F9 ] };
+    key <AE10>  { [         0,     equal,   braceright,  F10 ] };
+
+    key <AD04>  { [         r,          R,        bar,   registered ] };
+    key <AD06>  { [         z,          Z,      Print,         less ] };
+    key <AD07>  { [         u,          U,      U00FC,        U00DC ] };
+    key <AD08>  { [         i,          I,      grave,    plusminus ] };
+    key <AD09>  { [         o,          O,      U00F6,        U00D6 ] };
+    key <AD10>  { [         p,          P,      equal, XF86TaskPane ] };
+
+    key <AC01>  { [         a,          A,      U00E4,       U00C4 ] };
+    key <AC02>  { [         s,          S,     ssharp,     section ] };
+    key <AC05>  { [         g,          G, underscore,         ENG ] };
+    key <AC07>  { [         j,          J, apostrophe,   dead_horn ] };
+    key <AC08>  { [         k,          K,      minus,      degree ] };
+    key <AC09>  { [         l,          L,       plus,     Lstroke ] };
+    key <AC11>  { [  question,   asterisk,         at,  dead_caron ] };
+
+    key <AB01>  { [         y,          Y, asciicircum,       less ] };
+    key <AB02>  { [         x,          X,      degree,    greater ] };
+    key <AB07>  { [         m,          M,    Greek_mu,      U039C ] };
+    key <AB09>  { [    period,      colon,       U263A,   division ] };
+
+    key <AB08>  { [     comma,    semicolon, XF86Option,  multiply ] };
+};
+
+partial alphanumeric_keys
+xkb_symbols "ch-de" {
+    include "cosmo(de)"
+
+    name[Group1]="Cosmo Swiss German";
+
+    key <AE01>  { [         1,       plus,        U00A7,               F1 ] };
+    key <AE03>  { [         3,   asterisk,       dollar,               F3 ] };
+    key <AE04>  { [         4,      U00E7,     EuroSign,            U00A3 ] };
+    key <AE07>  { [         7,      slash,    backslash,               F7 ] };
+    key <AE08>  { [         8,  parenleft,  bracketleft,        braceleft ] };
+    key <AE09>  { [         9, parenright, bracketright,       braceright ] };
+    key <AE10>  { [         0,      equal,   asciitilde,              F10 ] };
+    key <AD10>  { [         p,          P,        U00C9,     XF86TaskPane ] };
+    key <AC05>  { [         g,          G, XF86TaskPane,              ENG ] };
+    key <AC06>  { [         h,          H,           at,   dead_diaeresis ] };
+    key <AC08>  { [         k,          K,     question,           degree ] };
+    key <AC09>  { [         l,          L,        U00E9,          Lstroke ] };
+    key <AC11>  { [     minus, underscore,        U00C0,       dead_caron ] };
+    key <AB07>  { [         m,          M,       exclam,            U039C ] };
+
+};
+
+partial alphanumeric_keys
+xkb_symbols "at" {
+    include "cosmo(de)"
+
+    name[Group1]="Cosmo Austrian";
 };
