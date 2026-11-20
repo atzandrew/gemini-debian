@@ -113,6 +113,14 @@ if [ "$DEVICE" = cosmo ]; then
     in_chroot flatpak remote-add --system --if-not-exists flathub /usr/share/gemini/flathub.flatpakrepo
 fi
 
+# New accounts get scale 2.25 from /etc/skel (at exactly 2, Kickoff's first
+# open loops). The login screen and the first-boot setup account keep 2:
+# Calamares' pages do not fit at 2.25, and neither uses the launcher.
+scale2() {
+    sed -i 's/"scale": 2.25,/"scale": 2,/' "$1"
+    grep -q '"scale": 2,' "$1" || { echo "!! scale 2 not set in $1"; exit 1; }
+}
+
 echo "    customize: gemini files + services"
 bash /work/bin/apply-files.sh "$R" "$S/files"
 if [ "$DEVICE" = cosmo ]; then
@@ -121,6 +129,7 @@ if [ "$DEVICE" = cosmo ]; then
     [ -n "$SH" ] || { echo "!! no sddm user"; exit 1; }
     install -d -m 755 "$R$SH/.config"
     install -m 644 "$R/etc/skel/.config/kwinoutputconfig.json" "$R/etc/skel/.config/kwinrc" "$R$SH/.config/"
+    scale2 "$R$SH/.config/kwinoutputconfig.json"
     in_chroot chown -R sddm:sddm "$SH/.config"
 fi
 
@@ -166,6 +175,10 @@ H=$R/home/$GEMINI_USER
 install -d -m 700 "$H/.ssh"
 install -m 600 "$S/authorized_keys" "$H/.ssh/authorized_keys"
 in_chroot chown -R "$GEMINI_USER:$GEMINI_USER" "/home/$GEMINI_USER/.ssh"
+if [ "${GEMINI_FIRST_SETUP:-0}" = 1 ]; then
+    scale2 "$H/.config/kwinoutputconfig.json"
+    in_chroot chown "$GEMINI_USER:$GEMINI_USER" "/home/$GEMINI_USER/.config/kwinoutputconfig.json"
+fi
 # root stays locked (no password); use sudo.
 
 if [ "${GEMINI_FIRST_SETUP:-0}" = 1 ] && [ "$DEVICE" = cosmo ]; then
