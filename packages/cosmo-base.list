@@ -10,3 +10,6 @@ gpiod
 alsa-ucm-conf
 # Front camera through PipeWire (libcamera plugin; PipeWire from backports).
 libspa-0.2-libcamera
+# SCP co-processor firmware (mediatek/mt8183/scp.img, the ChromeOS MT8183
+# image the kernel's SCP node boots; cosmo-linux618 435be50).
+firmware-mediatek
