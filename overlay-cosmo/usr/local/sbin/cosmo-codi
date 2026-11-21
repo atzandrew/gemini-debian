@@ -49,6 +49,8 @@ KEY_PROG2, BUS_VIRTUAL, EV_SYN = 149, 6, 0
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE = 0x40045564, 0x40045565, 0x5501
 ST32_SET_LOCK = 45                # STM32 request on a silver key press
 SEQ = 1234
+STALL_BYTES = 1024                # TX queue past this = link not draining
+SEND_TIMEOUT = 0.5                # longest wait for room in the TX queue
 MAGIC = b"X!X!"
 
 # Command numbers (stock firmware).
@@ -160,16 +162,35 @@ class Link:
         self.buf = b""
         self.pending = b""
         self.unknown = set()
+        self.stalled = False
 
     def send(self, cmd, payload=b""):
-        f = frame(cmd, payload)
-        view = memoryview(f)
+        # Never block the main loop on the UART: if the transmitter stops
+        # (seen 2026-11-20 after many failed suspend attempts: ttyS1
+        # "Unable to drain transmitter"), the lid and keyboard must keep
+        # working. Frames are small; a queue past STALL_BYTES means the
+        # link is not draining, so drop the frame instead of waiting.
+        outq = struct.unpack("i", fcntl.ioctl(self.fd, termios.TIOCOUTQ,
+                                              struct.pack("i", 0)))[0]
+        if outq > STALL_BYTES:
+            if not self.stalled:
+                log("uart stalled (%d bytes queued), dropping frames" % outq)
+                self.stalled = True
+            return
+        if self.stalled:
+            log("uart draining again (%d bytes queued)" % outq)
+            self.stalled = False
+        view = memoryview(frame(cmd, payload))
+        deadline = time.monotonic() + SEND_TIMEOUT
         while view:
             try:
-                n = os.write(self.fd, view)
-                view = view[n:]
+                view = view[os.write(self.fd, view):]
             except BlockingIOError:
-                select.select([], [self.fd], [], 1)
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    log("uart write timed out, frame %d cut short" % cmd)
+                    return
+                select.select([], [self.fd], [], left)
 
     def text(self, data):
         # Plain text (bootloader banner) arrives between frames; log it a
