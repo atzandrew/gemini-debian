@@ -1,0 +1,152 @@
+panfrost: index range cache for buffers not created as index buffers
+
+Mesa 26.1.6 (trixie-backports). Not yet applied by bin/build-mesa.sh.
+
+panfrost keeps a min/max index cache only for resources created with
+PIPE_BIND_INDEX_BUFFER. ANGLE (Chromium's WebGL) uploads every buffer
+through GL_ARRAY_BUFFER, so its index buffers have no cache and every
+indexed draw scans the indices on the CPU. On the Cosmo the GPU is not
+I/O-coherent, BO maps are write-combined and that scan reads uncached
+memory: ~64% of Chromium's GPU-process thread in the WebGL Aquarium.
+
+The cache is now created on a buffer's first indexed draw. Buffers that
+can change without a CPU transfer (writable SSBO, write image, transform
+feedback, global binding, persistent write map) are marked and never get
+a lazy cache; a lazy cache is dropped when that happens. Caches created
+for real index buffers keep the old behaviour.
+
+Measured (test build of the same change): WebGL Aquarium, 500 fish,
+Chromium 29 -> 54 fps; Firefox unchanged (44); cache hits 2000/2000.
+
+diff --git a/src/gallium/drivers/panfrost/pan_context.c b/src/gallium/drivers/panfrost/pan_context.c
+index e5dd965..067105b 100644
+--- a/src/gallium/drivers/panfrost/pan_context.c
++++ b/src/gallium/drivers/panfrost/pan_context.c
+@@ -280,6 +280,9 @@ panfrost_set_shader_images(struct pipe_context *pctx,
+          continue;
+       }
+       util_copy_image_view(&ctx->images[shader][start_slot + i], image);
++
++      if (image->access & PIPE_IMAGE_ACCESS_WRITE)
++         panfrost_resource_no_index_cache(image->resource);
+    }
+ 
+    /* Unbind start_slot+count...start_slot+count+unbind_num_trailing_slots */
+@@ -431,6 +434,13 @@ panfrost_set_shader_buffers(struct pipe_context *pctx,
+    util_set_shader_buffers_mask(ctx->ssbo[shader], &ctx->ssbo_mask[shader],
+                                 buffers, start, count);
+ 
++   /* Writable SSBOs change behind the index range cache */
++   if (buffers) {
++      u_foreach_bit(i, writable_bitmask)
++         if (i < count)
++            panfrost_resource_no_index_cache(buffers[i].buffer);
++   }
++
+    ctx->dirty_shader[shader] |= PAN_DIRTY_STAGE_SSBO;
+ }
+ 
+@@ -888,6 +898,9 @@ panfrost_set_stream_output_targets(struct pipe_context *pctx,
+       if (targets[i] && offsets[i] != -1)
+          pan_so_target(targets[i])->offset = offsets[i];
+ 
++      if (targets[i])
++         panfrost_resource_no_index_cache(targets[i]->buffer);
++
+       pipe_so_target_reference(&so->targets[i], targets[i]);
+    }
+ 
+@@ -923,6 +936,7 @@ panfrost_set_global_binding(struct pipe_context *pctx, unsigned first,
+       struct pipe_resource **res = util_dynarray_element(
+          &ctx->global_buffers, struct pipe_resource *, first + i);
+       if (resources && resources[i]) {
++         panfrost_resource_no_index_cache(resources[i]);
+          pipe_resource_reference(res, resources[i]);
+ 
+          /* The handle points to uint32_t, but space is allocated for 64
+diff --git a/src/gallium/drivers/panfrost/pan_helpers.c b/src/gallium/drivers/panfrost/pan_helpers.c
+index 99012fd..a6b62cb 100644
+--- a/src/gallium/drivers/panfrost/pan_helpers.c
++++ b/src/gallium/drivers/panfrost/pan_helpers.c
+@@ -122,6 +122,17 @@ panfrost_get_index_buffer_bounded(struct panfrost_batch *batch,
+     * behaviour. This should be fine for now but this needs to be revisited when
+     * wiring up robustness later.
+     */
++   /* Buffers first created for another target (ANGLE uploads every buffer
++    * through GL_ARRAY_BUFFER) get an index range cache on their first
++    * indexed draw; without it every draw scans the indices on the CPU,
++    * from write-combined memory on non-coherent GPUs. Buffers the GPU or
++    * a persistent map can write never get one. */
++   if (!info->has_user_indices && !rsrc->index_cache &&
++       !rsrc->no_index_cache) {
++      rsrc->index_cache = CALLOC_STRUCT(pan_minmax_cache);
++      rsrc->index_cache_lazy = rsrc->index_cache != NULL;
++   }
++
+    if (info->index_bounds_valid) {
+       *min_index = info->min_index;
+       *max_index = info->max_index;
+diff --git a/src/gallium/drivers/panfrost/pan_resource.c b/src/gallium/drivers/panfrost/pan_resource.c
+index d924c3c..121dd5b 100644
+--- a/src/gallium/drivers/panfrost/pan_resource.c
++++ b/src/gallium/drivers/panfrost/pan_resource.c
+@@ -1753,6 +1753,17 @@ panfrost_ptr_map(struct pipe_context *pctx, struct pipe_resource *resource,
+ 
+       unsigned dpw = PIPE_MAP_DIRECTLY | PIPE_MAP_WRITE | PIPE_MAP_PERSISTENT;
+ 
++      if ((usage & dpw) == dpw && rsrc->base.target == PIPE_BUFFER) {
++         /* A lazily created cache would go stale behind a persistent
++          * map: drop it, and never create one for this buffer again. */
++         rsrc->no_index_cache = true;
++         if (rsrc->index_cache_lazy) {
++            free(rsrc->index_cache);
++            rsrc->index_cache = NULL;
++            rsrc->index_cache_lazy = false;
++         }
++      }
++
+       if ((usage & dpw) == dpw && rsrc->index_cache)
+          return NULL;
+ 
+diff --git a/src/gallium/drivers/panfrost/pan_resource.h b/src/gallium/drivers/panfrost/pan_resource.h
+index 5220b5a..bc5f6eb 100644
+--- a/src/gallium/drivers/panfrost/pan_resource.h
++++ b/src/gallium/drivers/panfrost/pan_resource.h
+@@ -99,6 +99,15 @@ struct panfrost_resource {
+    /* Cached min/max values for index buffers */
+    struct pan_minmax_cache *index_cache;
+ 
++   /* index_cache was created on the first indexed draw of a buffer not
++    * bound as an index buffer at creation (e.g. ANGLE uploads every buffer
++    * through GL_ARRAY_BUFFER). */
++   bool index_cache_lazy;
++
++   /* Sticky: the buffer can change behind the CPU transfer path (GPU
++    * writes, persistent maps), so it never gets a lazy index_cache. */
++   bool no_index_cache;
++
+    /* Whether the resource owns the backing BO's label */
+    bool owns_label;
+ 
+@@ -252,4 +261,21 @@ void pan_dump_resource(struct panfrost_context *ctx,
+ void panfrost_blit_no_afbc_legalization(struct pipe_context *pipe,
+                                         const struct pipe_blit_info *info);
+ 
++/* The GPU may write this buffer without a CPU transfer: drop a lazily
++ * created index range cache and keep it from getting one again. */
++static inline void
++panfrost_resource_no_index_cache(struct pipe_resource *prsrc)
++{
++   if (!prsrc || prsrc->target != PIPE_BUFFER)
++      return;
++
++   struct panfrost_resource *rsrc = pan_resource(prsrc);
++   rsrc->no_index_cache = true;
++   if (rsrc->index_cache_lazy) {
++      free(rsrc->index_cache);
++      rsrc->index_cache = NULL;
++      rsrc->index_cache_lazy = false;
++   }
++}
++
+ #endif /* PAN_RESOURCE_H */
