@@ -178,3 +178,14 @@ xkb_symbols "at" {
 
     name[Group1]="Cosmo Austrian";
 };
+
+// UK with dead keys on Z: Fn+Z = diaeresis, Fn+Shift+Z = tilde
+// (in place of guillemotleft and dead_belowdot).
+partial alphanumeric_keys
+xkb_symbols "uk-ps16" {
+    include "cosmo(gb)"
+
+    name[Group1]="Cosmo English (UK, dead keys on Z)";
+
+    key <AB01>  { [         z,          Z,       dead_diaeresis,           dead_tilde ] };
+};
