@@ -36,8 +36,16 @@ for u in $(wifi_uuids); do
             802-11-wireless-security.pmf disable; then
         echo "\"$id\": WPA3 (sae) -> WPA2 (wpa-psk, PMF off) — this Wi-Fi driver can't do WPA3"
         # It is probably failing right now; retry with the fixed profile
-        # unless Wi-Fi is already connected to something.
-        if [ "$(nmcli -g GENERAL.STATE device show wlan0 2>/dev/null | cut -d' ' -f1)" != 100 ]; then
+        # unless Wi-Fi is already connected to something. Only when the
+        # password is stored system-wide (psk-flags 0): with the password in
+        # the user's wallet (psk-flags 1, Plasma's default) a root retry
+        # fails with "no secrets", and NetworkManager then stops
+        # auto-connecting the profile, so the user had to click again
+        # (Cosmo, 2026-11-09). Left alone, the failing WPA3 attempt times
+        # out and NetworkManager's own retry connects with the fixed profile
+        # and the wallet password (Cosmo, 2026-11-24: ~30 s, one click).
+        if [ "$(get "$u" 802-11-wireless-security.psk-flags)" = 0 ] &&
+           [ "$(nmcli -g GENERAL.STATE device show wlan0 2>/dev/null | cut -d' ' -f1)" != 100 ]; then
             nmcli -w 0 connection up "$u" >/dev/null 2>&1 || :
         fi
     else
