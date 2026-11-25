@@ -1,0 +1,7 @@
+# Masked by bin/apply-files.sh (Astro image).
+# Hibernate needs swap + a resume path this device doesn't have; suspend
+# is untested on the Astro.
+hibernate.target
+hybrid-sleep.target
+suspend-then-hibernate.target
+suspend.target

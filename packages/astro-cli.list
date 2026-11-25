@@ -1,0 +1,11 @@
+# Astro Slide command-line image: everyday tools (no Recommends).
+tmux
+htop
+man-db
+rsync
+wget
+git
+vim-tiny
+file
+lsof
+bc

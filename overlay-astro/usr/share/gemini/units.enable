@@ -1,0 +1,4 @@
+# Units enabled by bin/apply-files.sh (Astro image).
+gemini-growfs.service
+astro-boot-ok.service
+astro-console.service

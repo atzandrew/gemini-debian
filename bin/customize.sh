@@ -150,8 +150,8 @@ echo "    customize: fstab"
 # The boot image's initrd rewrites the first field of the "/" line to the
 # partition it actually mounted (mmcblk0 vs mmcblk1 varies), so the device
 # name here is only a placeholder. Keep the "<dev> / " shape.
-if [ "$DEVICE" = cosmo ]; then
-# Cosmo: the initramfs mounts userdata itself; name it by GPT label.
+if [ "$DEVICE" = cosmo ] || [ "$DEVICE" = astro ]; then
+# Cosmo/Astro: the initramfs mounts userdata itself; name it by GPT label.
 cat > "$R/etc/fstab" <<'EOF'
 PARTLABEL=userdata / ext4 defaults,noatime,errors=remount-ro 0 1
 EOF
@@ -200,7 +200,7 @@ fi
 
 echo "    customize: base services"
 in_chroot systemctl enable ssh.service NetworkManager.service systemd-timesyncd.service
-if [ "$DEVICE" = cosmo ]; then
+if [ "$DEVICE" = cosmo ] || [ "$DEVICE" = astro ]; then
     # Host-specific files must not ship. SSH host keys: each Cosmo makes its
     # own at first start (sshd-keygen.service, drop-in in overlay-cosmo).
     # resolv.conf: a copy of the build host's; NetworkManager writes it on
@@ -208,6 +208,16 @@ if [ "$DEVICE" = cosmo ]; then
     rm -f "$R"/etc/ssh/ssh_host_*
     rm -f "$R/etc/resolv.conf"
     : > "$R/etc/resolv.conf"
+fi
+
+if [ "$DEVICE" = astro ]; then
+    # Display helpers (astro-linux618 initramfs/, busybox scripts): run with
+    # busybox's applets first on PATH (astro-console.service), as in the
+    # initramfs.
+    echo "    customize: astro display helpers + busybox applets"
+    chmod 755 "$R/usr/bin/astro-console" "$R/usr/bin/astro-disp"
+    install -d "$R/usr/libexec/astro-bb"
+    in_chroot busybox --install -s /usr/libexec/astro-bb
 fi
 
 echo "    customize: boot-handoff checks"
@@ -302,6 +312,44 @@ if [ "$DEVICE" = cosmo ]; then
         [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
     fi
     echo "    customize: ok (cosmo, release=${COSMO_RELEASE:-0})"
+    exit 0
+fi
+if [ "$DEVICE" = astro ]; then
+    for d in / /etc /usr /usr/bin /usr/sbin /usr/lib /usr/local /usr/local/sbin /usr/share /var /home; do
+        m=$(stat -c %a "$R$d"); [ "$m" = 755 ] || { echo "!! $d has mode $m (want 755)"; exit 1; }
+    done
+    for t in sshd nmcli resize2fs setupcon busybox; do
+        in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing"; exit 1; }
+    done
+    ! compgen -G "$R/etc/ssh/ssh_host_*" >/dev/null || { echo "!! image carries SSH host keys"; exit 1; }
+    [ -f "$R/etc/resolv.conf" ] && [ ! -L "$R/etc/resolv.conf" ] && [ ! -s "$R/etc/resolv.conf" ] || { echo "!! /etc/resolv.conf is not empty (build host DNS)"; exit 1; }
+    grep -qx 'ConditionPathExists=!/etc/ssh/ssh_host_ed25519_key' "$R/etc/systemd/system/sshd-keygen.service.d/missing-keys.conf" || { echo "!! sshd-keygen drop-in missing"; exit 1; }
+    in_chroot systemctl is-enabled sshd-keygen.service >/dev/null 2>&1 || { echo "!! sshd-keygen.service not enabled"; exit 1; }
+    # Boot confirmation must not depend on SSH/network (else a network
+    # problem would send every other boot to the rescue initramfs).
+    ! grep -qiE '^(After|Wants|Requires|BindsTo)=.*(ssh|network)' "$R/etc/systemd/system/astro-boot-ok.service" || { echo "!! astro-boot-ok depends on SSH/network"; exit 1; }
+    for u in ssh.service NetworkManager.service astro-boot-ok.service astro-console.service gemini-growfs.service; do
+        in_chroot systemctl is-enabled "$u" >/dev/null 2>&1 || { echo "!! $u not enabled"; exit 1; }
+    done
+    # Rule 5 failsafes after the handoff (astro-linux618 AGENTS.md).
+    grep -qx "kernel.panic_on_oops = 1" "$R/etc/sysctl.d/90-astro-panic.conf" || { echo "!! panic_on_oops sysctl missing"; exit 1; }
+    grep -qx "RuntimeWatchdogSec=30s" "$R/etc/systemd/system.conf.d/astro-watchdog.conf" || { echo "!! systemd watchdog not configured"; exit 1; }
+    # Burn-in rule: the console helper must black the panel whenever it stops.
+    grep -qx "ExecStopPost=/usr/bin/astro-disp black" "$R/etc/systemd/system/astro-console.service" || { echo "!! astro-console.service has no blank-on-stop"; exit 1; }
+    for f in astro-console astro-disp; do
+        [ -x "$R/usr/bin/$f" ] || { echo "!! /usr/bin/$f missing"; exit 1; }
+    done
+    for a in devmem usleep dmesg; do
+        [ -e "$R/usr/libexec/astro-bb/$a" ] || { echo "!! busybox applet $a missing (astro-disp/astro-console)"; exit 1; }
+    done
+    grep -qx "method=manual" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 not static"; exit 1; }
+    grep -qx "address1=10.15.21.1/24,10.15.21.2" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 address/gateway wrong"; exit 1; }
+    grep -q "PARTLABEL=userdata / " "$R/etc/fstab" || { echo "!! fstab root is not PARTLABEL=userdata"; exit 1; }
+    [ -f "$R/usr/share/X11/xkb/symbols/cosmo" ] || { echo "!! cosmo xkb symbols missing"; exit 1; }
+    grep -qx "XKBLAYOUT=\"cosmo\"" "$R/etc/default/keyboard" || { echo "!! keyboard layout is not cosmo"; exit 1; }
+    ! in_chroot dpkg -s parted >/dev/null 2>&1 || { echo "!! parted installed (GPT holds the bootloaders)"; exit 1; }
+    [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
+    echo "    customize: ok (astro)"
     exit 0
 fi
 [ -f "$R/usr/lib/modules/$KVER/extra/mt6351-gauge.ko" ] || { echo "!! mt6351-gauge.ko missing (fuel gauge)"; exit 1; }

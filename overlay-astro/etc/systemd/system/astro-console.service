@@ -1,0 +1,23 @@
+[Unit]
+Description=Console on the command-mode AMOLED (astro-console, burn-in bounded)
+# The panel only changes when a frame is sent. astro-console (from
+# astro-linux618 initramfs/, installed as /usr/bin/astro-console) sends
+# frames while there is activity (kernel messages, keyboard) and a black
+# frame after 60 s idle. Same helper and rules as the rescue initramfs.
+DefaultDependencies=no
+After=local-fs.target
+Before=getty.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+# astro-console/astro-disp are busybox scripts: busybox applets first.
+Environment=PATH=/usr/libexec/astro-bb:/usr/sbin:/usr/bin
+ExecStart=/usr/bin/astro-console 60
+# Whenever the helper stops (crash, restart, shutdown): pixels off, so a
+# frozen frame is never left lit.
+ExecStopPost=/usr/bin/astro-disp black
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,5 @@
+# Astro Slide (DEVICE=astro): base system additions.
+# astro-console / astro-disp are busybox scripts (devmem, usleep).
+busybox
+console-setup
+xkb-data

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Tell the Astro initramfs that this root system came up. Before the
+# handoff the initramfs writes "TRY" to /var/lib/astro-boot/state (the
+# Astro has no cache partition, so the flag lives on the root filesystem
+# itself); once systemd has reached multi-user.target this overwrites it
+# with "OK". Nothing here depends on SSH or the network. If start-up never
+# gets that far (emergency mode, a hang reset by the power key or the
+# watchdog), the flag stays TRY and the next boot stays in the rescue
+# initramfs (USB shell); the boot after that tries again.
+set -e
+f=/var/lib/astro-boot/state
+systemctl is-active --quiet multi-user.target \
+    || { echo "astro-boot-ok: multi-user.target not reached: boot NOT confirmed" >&2; exit 1; }
+mkdir -p "${f%/*}"
+printf 'OK\n' > "$f.new"
+sync "$f.new"
+mv "$f.new" "$f"
+sync
+echo "astro-boot-ok: multi-user.target reached, boot confirmed"

@@ -1,0 +1,17 @@
+# Files the Astro image takes unchanged from the other overlays (paths
+# relative to the repo). Everything Astro-specific is in overlay-astro/.
+overlay/usr/local/sbin/gemini-growfs
+overlay/etc/systemd/system/gemini-growfs.service
+# Keyboard: the Astro's AW9523 matrix and keymap are the Cosmo's (kernel
+# defkeymap = cosmo(us), Fn layer confirmed 2026-11-25), so the console
+# keymap comes from the same xkb layout, plus the Ctrl+Fn+Alt+Backspace
+# reboot binding.
+overlay-cosmo/usr/share/X11/xkb/symbols/cosmo
+overlay-cosmo/etc/default/keyboard
+overlay-cosmo/etc/console-setup/remap.inc
+# Host keys made on the device, not shipped (see the file).
+overlay-cosmo/etc/systemd/system/sshd-keygen.service.d/missing-keys.conf
+# systemd status only for failed/slow units on the console.
+overlay-cosmo/etc/systemd/system.conf.d/10-cosmo-quiet-status.conf
+# NetworkManager manages the g_ether gadget interface.
+overlay-cosmo/etc/udev/rules.d/86-cosmo-usb0-managed.rules

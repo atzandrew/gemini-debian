@@ -1,0 +1,14 @@
+# CONFIGURATION FILE FOR SETUPCON (Astro)
+# Consult the console-setup(5) manual page.
+# Same font as the kernel console (boot cmdline fbcon=font:TER16x32), so
+# setupcon does not shrink the text.
+
+ACTIVE_CONSOLES="/dev/tty[1-6]"
+
+CHARMAP="UTF-8"
+
+CODESET="Lat15"
+FONTFACE="Terminus"
+FONTSIZE="16x32"
+
+VIDEOMODE=

@@ -25,7 +25,8 @@ die() { echo "!! $*" >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || die "run as your normal user, not root (sudo is used only for podman)"
 [ "$DEVICE" != gemini ] || command -v nix >/dev/null || die "nix not found"
 case "$DEVICE" in gemini) ;; cosmo) [ "${DEVICE_LOADED:-}" = cosmo ] || die "devices/cosmo.env not loaded" ;;
-    *) die "unknown DEVICE=$DEVICE (gemini or cosmo)" ;; esac
+    astro) [ "${DEVICE_LOADED:-}" = astro ] || die "devices/astro.env not loaded" ;;
+    *) die "unknown DEVICE=$DEVICE (gemini, cosmo or astro)" ;; esac
 command -v podman >/dev/null || die "podman not found — install it with: sudo dnf install podman"
 command -v openssl >/dev/null || die "openssl not found"
 
@@ -131,8 +132,54 @@ stage_cosmo() {
     echo "    files tree: $(find "$F" -type f | wc -l) files"
 }
 
+# Astro: kernel modules from astro-linux618 (out/modroot), files tree from
+# overlay-astro/ plus the shared files named in devices/astro.common, and
+# the display helpers from astro-linux618 initramfs/ (single source).
+stage_astro() {
+    local K MODS f krev drev
+    K=$(cd "$HERE" && cd "$ASTRO_KERNEL_DIR" && pwd) || die "astro-linux618 not found at $ASTRO_KERNEL_DIR"
+    echo "==> 1/3 kernel modules from $K"
+    MODS=$K/out/modroot/lib/modules
+    [ -d "$MODS/$EXPECT_KVER/kernel" ] || die "no $MODS/$EXPECT_KVER (run bin/build-kernel.sh in $K)"
+    KVER=$EXPECT_KVER
+    mkdir -p "$STAGE/modules" "$STAGE/firmware"
+    cp -r "$MODS/$KVER" "$STAGE/modules/"
+    echo "$KVER" > "$STAGE/kver"
+    krev=$(cat "$K/out/modroot/astro-linux618-rev" 2>/dev/null || echo "unknown")
+    drev=$(git -C "$HERE" rev-parse --short HEAD 2>/dev/null || echo "?")
+    [ -z "$(git -C "$HERE" status --porcelain --untracked-files=no -- bin config.env devices overlay-astro packages 2>/dev/null)" ] || drev="$drev +uncommitted changes"
+    {
+        echo "built: $(date -Is) on $(hostname)"
+        echo "device: astro"
+        echo "astro-linux618: $krev"
+        echo "gemini-debian: $drev"
+        echo "kernel: $KVER"
+        echo "suite: $DEBIAN_SUITE"
+    } > "$STAGE/build-info"
+    echo "    kernel: $KVER, modules: $(du -sh "$STAGE/modules" | cut -f1)"
+    F=$STAGE/files
+    mkdir -p "$F"
+    while read -r f; do
+        f=${f%%#*}; f=$(echo $f)
+        [ -n "$f" ] || continue
+        [ -f "$f" ] || die "devices/astro.common: $f missing"
+        install -D -m 644 "$f" "$F/${f#*/}"
+    done < devices/astro.common
+    cp -r overlay-astro/. "$F/"
+    for f in astro-console astro-disp; do
+        [ -f "$K/initramfs/$f" ] || die "$K/initramfs/$f missing"
+        install -D -m 644 "$K/initramfs/$f" "$F/usr/bin/$f"
+    done
+    sed -i "s|@USB_ADDR@|$USB_ADDR|g; s|@USB_GW@|$USB_GW|g" "$F/etc/NetworkManager/system-connections/usb0.nmconnection"
+    install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
+    rm -rf "$STAGE/firstboot" && mkdir -p "$STAGE/firstboot"
+    echo "    files tree: $(find "$F" -type f | wc -l) files"
+}
+
 if [ "$DEVICE" = cosmo ]; then
 stage_cosmo
+elif [ "$DEVICE" = astro ]; then
+stage_astro
 else
 echo "==> 1/3 kernel modules + firmware from $NIXOS"
 SYS=$(cd "$NIXOS" && nix build .#packages.aarch64-linux.toplevel --print-out-paths --no-link)
@@ -264,7 +311,7 @@ if [ -n "${GEMINI_PASSWORD_HASH:-}" ]; then
     echo "$GEMINI_PASSWORD_HASH" > "$STAGE/password-hash"
 else
     while :; do
-        read -r -s -p "    password for $GEMINI_USER on the Gemini: " p1; echo
+        read -r -s -p "    password for $GEMINI_USER on the $DEVICE: " p1; echo
         read -r -s -p "    again: " p2; echo
         [ -n "$p1" ] && [ "$p1" = "$p2" ] && break
         echo "    (empty or mismatch — try again)"

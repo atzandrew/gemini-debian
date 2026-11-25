@@ -1,0 +1,20 @@
+# USB network link to Monolith (g_ether gadget, built into the Astro kernel).
+# Static: the Astro is @USB_ADDR@, as in its rescue initramfs. Monolith is
+# @USB_GW@ with a NetworkManager "shared" profile (NAT + DNS), so this link
+# is also the Astro's way to the internet until Wi-Fi works.
+[connection]
+id=usb0
+type=ethernet
+interface-name=usb0
+autoconnect=true
+
+[ethernet]
+
+[ipv4]
+method=manual
+address1=@USB_ADDR@,@USB_GW@
+dns=@USB_GW@;
+route-metric=1000
+
+[ipv6]
+method=disabled
