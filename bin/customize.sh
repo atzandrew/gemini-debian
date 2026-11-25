@@ -216,8 +216,10 @@ if [ "$DEVICE" = astro ]; then
     # initramfs.
     echo "    customize: astro display helpers + busybox applets"
     chmod 755 "$R/usr/bin/astro-console" "$R/usr/bin/astro-disp"
-    install -d "$R/usr/libexec/astro-bb"
-    in_chroot busybox --install -s /usr/libexec/astro-bb
+    chmod 755 "$R/usr/libexec/astro-bb/busybox"
+    for a in $(in_chroot /usr/libexec/astro-bb/busybox --list); do
+        [ -e "$R/usr/libexec/astro-bb/$a" ] || ln -s busybox "$R/usr/libexec/astro-bb/$a"
+    done
 fi
 
 echo "    customize: boot-handoff checks"

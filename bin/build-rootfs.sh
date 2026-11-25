@@ -170,6 +170,12 @@ stage_astro() {
         [ -f "$K/initramfs/$f" ] || die "$K/initramfs/$f missing"
         install -D -m 644 "$K/initramfs/$f" "$F/usr/bin/$f"
     done
+    # The helpers' applets (devmem, usleep, ...) come from the same static
+    # busybox the initramfs is packed with (astro-linux618
+    # bin/build-boot-img.sh BUSYBOX); Debian's busybox has no devmem.
+    ASTRO_BUSYBOX=${ASTRO_BUSYBOX:-/usr/bin/busybox}
+    file -L "$ASTRO_BUSYBOX" | grep -q 'statically linked' || die "$ASTRO_BUSYBOX is not a static busybox"
+    install -D -m 644 "$ASTRO_BUSYBOX" "$F/usr/libexec/astro-bb/busybox"
     sed -i "s|@USB_ADDR@|$USB_ADDR|g; s|@USB_GW@|$USB_GW|g" "$F/etc/NetworkManager/system-connections/usb0.nmconnection"
     install -D -m 644 "$STAGE/build-info" "$F/etc/gemini/build-info"
     rm -rf "$STAGE/firstboot" && mkdir -p "$STAGE/firstboot"
