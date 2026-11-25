@@ -27,6 +27,8 @@ for f in "$R"/usr/local/sbin/* "$R"/usr/local/bin/*; do [ ! -f "$f" ] || chmod 7
 # systemd-sleep runs only executable hooks; a 0644 hook is skipped without a
 # message (cosmo-wifi-sleep: CONNSYS stayed on and woke deep sleep at once).
 for f in "$R"/usr/lib/systemd/system-sleep/*; do [ ! -f "$f" ] || chmod 755 "$f"; done
+# tuned runs a profile's [script] directly: it must be executable.
+for f in "$R"/etc/tuned/profiles/*/script.sh; do [ ! -f "$f" ] || chmod 755 "$f"; done
 chmod 600 "$R"/etc/NetworkManager/system-connections/*.nmconnection
 # sudoers drop-ins: sudo wants 0440
 for f in "$R"/etc/sudoers.d/gemini-*; do [ ! -e "$f" ] || chmod 440 "$f"; done

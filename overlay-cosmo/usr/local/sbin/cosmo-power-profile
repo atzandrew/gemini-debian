@@ -1,0 +1,32 @@
+#!/bin/sh
+# Set CPU and GPU frequency limits for a power profile.
+# Called by tuned (script plugin) as: cosmo-power-profile <profile> start|stop
+# All values are entries of the stock OPP tables; nothing above stock.
+#   saver       little <= 1508 MHz, big <= 1248 MHz, GPU <= 500 MHz
+#   balanced    full tables (boot defaults)
+#   performance little >= 1248 MHz, big >= 1326 MHz, GPU >= 500 MHz
+# Thermal limits still apply on top of these.
+set -u
+CPUF=/sys/devices/system/cpu/cpufreq
+GPU=/sys/class/devfreq/13040000.gpu
+
+profile=$1
+[ "${2:-start}" = stop ] && profile=balanced
+
+# min_lo max_lo min_hi max_hi gpu_min gpu_max  (kHz / Hz)
+case "$profile" in
+saver)       set -- 793000 1508000 793000 1248000 300000000 500000000 ;;
+performance) set -- 1248000 1989000 1326000 2106000 500000000 900000000 ;;
+*)           set -- 793000 1989000 793000 2106000 300000000 900000000 ;;
+esac
+
+# Drop min to the floor first, then set max, then min, so min <= max at every step.
+limits() { # path-prefix min max floor
+	echo "$4" > "${1}min_freq"
+	echo "$3" > "${1}max_freq"
+	echo "$2" > "${1}min_freq"
+}
+limits "$CPUF/policy0/scaling_" "$1" "$2" 793000
+limits "$CPUF/policy4/scaling_" "$3" "$4" 793000
+limits "$GPU/" "$5" "$6" 300000000
+exit 0

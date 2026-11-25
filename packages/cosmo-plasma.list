@@ -9,6 +9,10 @@ kwin-wayland
 plasma-pa
 plasma-nm
 powerdevil
+# Power profiles for the battery applet: tuned-ppd provides power-profiles-daemon
+# (the placeholder driver has no clock control on this SoC); Cosmo profiles in
+# overlay-cosmo/etc/tuned (cosmo-power-profile sets CPU/GPU limits).
+tuned-ppd
 bluedevil
 breeze
 kscreen
