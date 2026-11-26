@@ -1,0 +1,124 @@
+#!/bin/bash
+# astro-wifi — bring up the Astro Slide's internal Wi-Fi (MT6873 CONSYS,
+# A-die MT6635) -> wlan0. Drivers: astro-linux618
+# drivers/misc/mediatek-connectivity (docs/wifi-stock.md).
+#
+# The image ships no MediaTek blobs and no per-unit data. Before loading the
+# drivers this copies, read-only (no mount, no write to any partition):
+#   - Wi-Fi/WMT firmware from this unit's Android vendor_<slot>, a logical
+#     partition inside "super": its extent is read from super's LP metadata,
+#     mapped with a read-only loop device and read with debugfs (no -w);
+#   - this unit's Wi-Fi NVRAM record (MAC, 5 GHz enable, TX calibration) and
+#     Bluetooth address from "nvdata" (/APCFG/APRDEB/WIFI, BT_Addr) into
+#     /mnt/vendor/nvdata, if missing.
+# Then loads mt6359-regulator (the five CONSYS rails), btif_drv, connadp,
+# wmt_drv (its in-kernel launcher replaces wmt_loader/wmt_launcher),
+# wmt_chrdev_wifi, wlan_drv_gen4m_6873, hands the NVRAM record to the driver
+# ("WR-BUF:NVRAM" + record in one write to /dev/wmtWifi) and powers Wi-Fi on
+# ("1"). NetworkManager picks wlan0 up via udev (ap0/wlan1/p2p0 are left
+# unmanaged: /etc/NetworkManager/conf.d/90-astro-wifi.conf).
+set -u
+FW="WIFI_RAM_CODE_soc2_0_3b_1.bin soc2_0_patch_mcu_3b_1_hdr.bin
+    soc2_0_ram_mcu_3b_1_hdr.bin soc2_0_ram_wifi_3b_1_hdr.bin
+    soc2_0_ram_bt_3b_1_hdr.bin WMT_SOC.cfg BT_FW.cfg"
+NV=/mnt/vendor/nvdata/APCFG/APRDEB
+MODS="mt6359-regulator btif_drv connadp wmt_drv wmt_chrdev_wifi wlan_drv_gen4m_6873"
+say() { echo "astro-wifi: $*"; }
+
+part() { # GPT name -> device
+	local i
+	for i in $(seq 1 10); do
+		[ -e "/dev/disk/by-partlabel/$1" ] && { readlink -f "/dev/disk/by-partlabel/$1"; return 0; }
+		sleep 1
+	done
+	return 1
+}
+u32() { od -An -t u4 -j "$2" -N 4 "$1" | tr -d ' '; }  # little-endian host
+u64() { od -An -t u8 -j "$2" -N 8 "$1" | tr -d ' '; }
+
+# lp_extent <super> <name>: prints "<byte offset> <bytes>" of a logical
+# partition with exactly one linear extent (slot 0 metadata). Layout: AOSP
+# liblp metadata_format.h — geometry at 4096 (magic 0x616c4467), two
+# geometry copies, primary metadata slot 0 at 12288 (magic 0x414c5030).
+lp_extent() {
+	local s=$1 want=$2 base=12288 hsz tsz po pn pe eo ee i e name fe ne x
+	[ "$(u32 "$s" 4096)" = 1634485351 ] || { say "super: no LP geometry"; return 1; }
+	[ "$(u32 "$s" $base)" = 1095520304 ] || { say "super: no LP metadata"; return 1; }
+	hsz=$(u32 "$s" $((base + 8)));  tsz=$(u32 "$s" $((base + 44)))
+	po=$(u32 "$s" $((base + 80)));  pn=$(u32 "$s" $((base + 84)));  pe=$(u32 "$s" $((base + 88)))
+	eo=$(u32 "$s" $((base + 92)));  ee=$(u32 "$s" $((base + 100)))
+	[ "$tsz" -gt 0 ] && [ "$pn" -gt 0 ] && [ "$pn" -lt 64 ] || { say "super: bad LP tables"; return 1; }
+	for i in $(seq 0 $((pn - 1))); do
+		e=$((base + hsz + po + i * pe))
+		name=$(dd if="$s" bs=1 skip=$e count=36 status=none | tr -d '\0')
+		[ "$name" = "$want" ] || continue
+		fe=$(u32 "$s" $((e + 40))); ne=$(u32 "$s" $((e + 44)))
+		[ "$ne" = 1 ] || { say "$want: $ne extents (expected 1)"; return 1; }
+		x=$((base + hsz + eo + fe * ee))
+		[ "$(u32 "$s" $((x + 8)))" = 0 ] || { say "$want: extent is not linear"; return 1; }
+		echo "$(( $(u64 "$s" $((x + 12))) * 512 )) $(( $(u64 "$s" "$x") * 512 ))"
+		return 0
+	done
+	say "super: no $want"; return 1
+}
+dump() { # $1 = ext4 device, $2 = path inside, $3 = destination
+	local t; t=$(mktemp)
+	debugfs -R "dump $2 $t" "$1" >/dev/null 2>&1
+	if [ -s "$t" ]; then install -m 644 "$t" "$3"; rm -f "$t"; return 0; fi
+	rm -f "$t"; return 1
+}
+
+need=0
+for f in $FW; do [ -s "/lib/firmware/$f" ] || need=1; done
+if [ $need = 1 ]; then
+	slot=$(grep -o 'androidboot.slot_suffix=[^ ]*' /proc/cmdline | cut -d= -f2)
+	vname="vendor${slot:-_a}"
+	if s=$(part super) && ext=$(lp_extent "$s" "$vname"); then
+		set -- $ext
+		if lo=$(losetup -r -f --show -o "$1" --sizelimit "$2" "$s"); then
+			for f in $FW; do
+				[ -s "/lib/firmware/$f" ] && continue
+				dump "$lo" "/firmware/$f" "/lib/firmware/$f" && say "firmware $f copied from $vname" \
+					|| say "WARNING: no /firmware/$f in $vname"
+			done
+			losetup -d "$lo"
+		else
+			say "WARNING: cannot map $vname read-only"
+		fi
+	else
+		say "WARNING: no $vname in super"
+	fi
+fi
+
+mkdir -p "$NV"
+if n=$(part nvdata); then
+	for f in WIFI BT_Addr; do
+		[ -s "$NV/$f" ] && continue
+		dump "$n" "/APCFG/APRDEB/$f" "$NV/$f" && say "NVRAM $f copied from $n" \
+			|| say "WARNING: no /APCFG/APRDEB/$f on $n (driver defaults)"
+	done
+	chmod 600 "$NV"/* 2>/dev/null
+else
+	say "WARNING: no nvdata partition (driver defaults)"
+fi
+
+for m in $MODS; do
+	modprobe "$m" || { say "modprobe $m failed"; exit 1; }
+done
+for i in $(seq 1 10); do [ -c /dev/wmtWifi ] && break; sleep 0.5; done
+# NVRAM must reach the driver before power-on (gen4m reads it at probe).
+NVREC=2050   # this unit's record (gen4m WIFI_CFG_PARAM_STRUCT)
+if [ "$(stat -c %s "$NV/WIFI" 2>/dev/null || echo 0)" -ge $NVREC ]; then
+	t=$(mktemp)
+	{ printf 'WR-BUF:NVRAM'; head -c $NVREC "$NV/WIFI"; } > "$t"
+	dd if="$t" of=/dev/wmtWifi bs=$((NVREC + 12)) count=1 status=none \
+		&& say "NVRAM handed to the driver" \
+		|| say "WARNING: NVRAM write failed (driver defaults)"
+	rm -f "$t"
+else
+	say "WARNING: no NVRAM record (driver defaults)"
+fi
+printf 1 > /dev/wmtWifi || { say "Wi-Fi power-on failed (dmesg: WMT)"; exit 1; }
+for i in $(seq 1 20); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.5; done
+[ -e /sys/class/net/wlan0 ] || { say "no wlan0 after power-on"; exit 1; }
+say "wlan0 up"

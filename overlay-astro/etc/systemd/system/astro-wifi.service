@@ -1,0 +1,14 @@
+# Internal Wi-Fi bring-up -> wlan0 (/usr/local/sbin/astro-wifi). No
+# Before=NetworkManager.service: NM picks wlan0 up via udev when it appears.
+[Unit]
+Description=Astro internal Wi-Fi (MT6873 CONSYS) -> wlan0
+After=local-fs.target systemd-udevd.service systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=90
+ExecStart=/usr/local/sbin/astro-wifi
+
+[Install]
+WantedBy=multi-user.target
