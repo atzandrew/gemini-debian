@@ -1,0 +1,5 @@
+#!/bin/sh
+# Astro: the panel is mounted turned (DT rotation 90, fbcon rotate:1);
+# Xorg modesetting does not apply the panel orientation itself.
+xrandr --output DSI-1 --rotate right
+exec /usr/share/sddm/scripts/Xsetup

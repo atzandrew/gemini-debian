@@ -1,0 +1,3 @@
+# Astro: stable name for the panel KMS device (mediatek-drm); the card
+# number changes between boots (panfrost and simpledrm also register).
+SUBSYSTEM=="drm", KERNEL=="card*", DRIVERS=="mediatek-drm", SYMLINK+="dri/astro-panel"

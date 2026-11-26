@@ -5,3 +5,5 @@
 # screen-off, burn-in rule), kscreen, xwayland.
 plasma-desktop
 konsole
+sddm
+sddm-theme-breeze
