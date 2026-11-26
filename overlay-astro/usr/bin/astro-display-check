@@ -1,0 +1,28 @@
+#!/bin/sh
+# astro-display-check: is the SH8802B on mediatek-drm? (astro-display.service)
+# Success: console blank after 60 s idle. Failure: fall back to LK's path.
+log() { echo "astro-display: $*" > /dev/kmsg; }
+
+modprobe mediatek_drm 2>/dev/null
+n=0
+while [ $n -lt 150 ]; do
+	if grep -qi mediatek /sys/class/graphics/fb*/name 2>/dev/null &&
+	   dmesg | grep -q 'sh8802b.*power mode'; then
+		# fbcon idle blank: 1 min (VT escape "blank interval"), DPMS off
+		printf '\033[9;1]' > /dev/tty1
+		log "mediatek-drm up ($(dmesg | grep 'sh8802b.*power mode' | tail -1 | sed 's/.*power mode/power mode/')), console blank 60 s"
+		exit 0
+	fi
+	usleep 100000 2>/dev/null || sleep 1
+	n=$((n + 1))
+done
+
+if lsmod | grep -q '^mediatek_drm' && [ -e /sys/bus/platform/drivers/mediatek-drm/mediatek-drm.1.auto ]; then
+	# The driver owns the DSI: do not poke LK's path next to it. Its own
+	# error paths switch the panel off.
+	log "mediatek-drm bound but no panel enable after 15 s; leaving the panel to the driver"
+	exit 1
+fi
+log "mediatek-drm not up after 15 s: falling back to astro-console (LK path)"
+systemctl start astro-console.service
+exit 1

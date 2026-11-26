@@ -1,0 +1,20 @@
+[Unit]
+Description=Panel on mediatek-drm (SH8802B command mode), LK path as fallback
+# mediatek-drm (with the SH8802B panel driver) takes the panel over from the
+# bootloader: no panel init, stock off on blank, stock screen-on on wake.
+# The console blanks after 60 s idle (fbcon -> DPMS -> stock off). If the
+# driver has not come up after 15 s, astro-console drives LK's path as
+# before (astro-linux618 docs/display-stock.md, Stage 5).
+DefaultDependencies=no
+After=systemd-udev-trigger.service local-fs.target
+Before=getty.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=PATH=/usr/libexec/astro-bb:/usr/sbin:/usr/bin
+ExecStart=/usr/bin/astro-display-check
+
+[Install]
+WantedBy=sysinit.target
