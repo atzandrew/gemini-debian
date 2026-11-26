@@ -3,3 +3,4 @@ gemini-growfs.service
 astro-boot-ok.service
 astro-console.service
 astro-wifi.service
+astro-bt.service

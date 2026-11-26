@@ -1,0 +1,17 @@
+# Internal Bluetooth bring-up -> hci0 (/usr/local/sbin/astro-bt). hci_stp
+# needs the CONSYS chip powered by astro-wifi; bluetoothd starts after the
+# BD address is set.
+[Unit]
+Description=Astro internal Bluetooth (MT6873 CONSYS hci_stp) -> hci0
+After=astro-wifi.service systemd-modules-load.service
+Wants=astro-wifi.service
+Before=bluetooth.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=30
+ExecStart=/usr/local/sbin/astro-bt
+
+[Install]
+WantedBy=multi-user.target

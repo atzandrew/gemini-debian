@@ -3,3 +3,5 @@
 busybox
 console-setup
 xkb-data
+# Internal Bluetooth (astro-bt: hci_stp; bluetoothd, bluetoothctl, btmgmt)
+bluez
