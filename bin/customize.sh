@@ -120,6 +120,16 @@ if [ "$DEVICE" = gemini ] && compgen -G "/work/out/mesa/*.deb" >/dev/null; then
     rm -rf "$R/tmp/gemini-mesa"
 fi
 
+# ---- Astro Mesa (present after bin/build-mesa-astro.sh) -----------------
+# trixie-backports Mesa + the panfrost transcendental-branch patch, held.
+if [ "$DEVICE" = astro ] && compgen -G "/work/out/mesa-astro/*.deb" >/dev/null; then
+    echo "    customize: Astro Mesa ($(ls /work/out/mesa-astro/*.deb | wc -l) debs built)"
+    mkdir -p "$R/tmp/astro-mesa"
+    cp /work/out/mesa-astro/*.deb /work/bin/mesa-upgrade.sh "$R/tmp/astro-mesa/"
+    in_chroot bash /tmp/astro-mesa/mesa-upgrade.sh /tmp/astro-mesa
+    rm -rf "$R/tmp/astro-mesa"
+fi
+
 # Cosmo: Flathub for Discover and the flatpak command (system-wide; the
 # .flatpakrepo file carries the key, so no network is needed here).
 if [ "$DEVICE" = cosmo ]; then
@@ -379,6 +389,9 @@ if [ "$DEVICE" = astro ]; then
     grep -qx "DisplayServer=wayland" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM greeter is not Wayland"; exit 1; }
     # Mesa from trixie-backports, as the Cosmo (etc/apt/preferences.d/mesa-backports).
     in_chroot dpkg-query -W -f '${Version}' mesa-libgallium | grep -q '~bpo13' || { echo "!! Mesa is not the trixie-backports build"; exit 1; }
+    if compgen -G "/work/out/mesa-astro/*.deb" >/dev/null; then
+        in_chroot dpkg-query -W -f '${Version}' mesa-libgallium | grep -q '+astro1' || { echo "!! Astro Mesa built but not installed"; exit 1; }
+    fi
     grep -qx "mediatek-cpufreq" "$R/etc/modules-load.d/astro-cpufreq.conf" || { echo "!! CPU DVFS module not loaded at boot"; exit 1; }
     grep -qx "export KWIN_COMPOSE=O2ES" "$R/etc/xdg/plasma-workspace/env/astro.sh" || { echo "!! KWin not set to OpenGL ES (GL error flood on desktop GL)"; exit 1; }
     grep -q "^CompositorCommand=env KWIN_COMPOSE=O2ES" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM greeter KWin not on OpenGL ES"; exit 1; }
