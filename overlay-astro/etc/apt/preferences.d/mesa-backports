@@ -1,0 +1,7 @@
+# Mesa (panfrost) from trixie-backports (26.1.6 on 2026-11-08 vs 25.0.7 in
+# trixie): with 25.0.7 Firefox's main process crashed right after WebGL
+# started; 26.1 runs WebGL. Only the Mesa packages follow backports;
+# everything else stays on trixie (backports default priority 100).
+Package: libegl-mesa0 libgbm1 libgl1-mesa-dri libglx-mesa0 mesa-libgallium mesa-vulkan-drivers mesa-va-drivers mesa-vdpau-drivers libosmesa6 mesa-drm-shim mesa-opencl-icd mesa-teflon-delegate
+Pin: release n=trixie-backports
+Pin-Priority: 990

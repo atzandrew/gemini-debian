@@ -46,9 +46,24 @@ if [ -n "$EXTRA" ]; then
             install -m 644 /work/overlay-cosmo/etc/apt/$d/* "$R/etc/apt/$d/"
         done
     fi
+    # Astro: the same trixie-backports Mesa as the Cosmo (pin only).
+    if [ "$DEVICE" = astro ]; then
+        for d in sources.list.d preferences.d; do
+            install -d "$R/etc/apt/$d"
+            install -m 644 /work/overlay-astro/etc/apt/$d/* "$R/etc/apt/$d/"
+        done
+    fi
     export DEBIAN_FRONTEND=noninteractive
     in_chroot apt-get clean
     in_chroot apt-get update -qq
+    if [ "$DEVICE" = astro ]; then
+        MESA=$(in_chroot dpkg-query -W -f '${Package} ${Status} ${source:Package}\n' 2>/dev/null | awk '$4=="installed" && $5=="mesa" {print $1}' | xargs)
+        if [ -n "$MESA" ]; then
+            echo "    customize: Mesa from trixie-backports: $MESA"
+            # shellcheck disable=SC2086
+            in_chroot apt-get install -y -q --no-install-recommends $MESA
+        fi
+    fi
     if [ "$DEVICE" = cosmo ]; then
         MESA=$(in_chroot dpkg-query -W -f '${Package} ${Status} ${source:Package}\n' 2>/dev/null | awk '$4=="installed" && $5=="mesa" {print $1}' | xargs)
         if [ -n "$MESA" ]; then
@@ -362,6 +377,9 @@ if [ "$DEVICE" = astro ]; then
     [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
     # Login screen: KWin greeter with the idle screen-off (OLED burn-in rule).
     grep -qx "DisplayServer=wayland" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM greeter is not Wayland"; exit 1; }
+    # Mesa from trixie-backports, as the Cosmo (etc/apt/preferences.d/mesa-backports).
+    in_chroot dpkg-query -W -f '${Version}' mesa-libgallium | grep -q '~bpo13' || { echo "!! Mesa is not the trixie-backports build"; exit 1; }
+    grep -qx "mediatek-cpufreq" "$R/etc/modules-load.d/astro-cpufreq.conf" || { echo "!! CPU DVFS module not loaded at boot"; exit 1; }
     grep -qx "CompositorCommand=kwin_wayland .* /usr/libexec/astro-greeter-idle" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM's KWin does not start astro-greeter-idle"; exit 1; }
     [ -x "$R/usr/libexec/astro-greeter-idle" ] || { echo "!! astro-greeter-idle missing"; exit 1; }
     for t in kwin_wayland swayidle kscreen-doctor; do
