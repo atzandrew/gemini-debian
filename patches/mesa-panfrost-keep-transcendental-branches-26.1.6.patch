@@ -1,0 +1,20 @@
+--- a/src/panfrost/compiler/bifrost/bifrost_nir.c
++++ b/src/panfrost/compiler/bifrost/bifrost_nir.c
+@@ -215,9 +215,16 @@
+       NIR_PASS(progress, nir, nir_opt_dce);
+       NIR_PASS(progress, nir, nir_opt_cse);
+ 
++      /* Keep branches whose blocks hold transcendentals (pow, exp2, log2,
++       * rcp, rsq, sin/cos, divisions) as branches: on Bifrost/Valhall these
++       * run on the slow transcendental path, while a uniform branch costs
++       * next to nothing. Flattening them computes every side for every
++       * fragment (KWin's colour-management shader: 18 pow per pixel where 6
++       * are taken, 2.6x the fragment time on a Mali-G57).
++       */
+       nir_opt_peephole_select_options peephole_select_options = {
+          .limit = 64,
+-         .expensive_alu_ok = true,
++         .expensive_alu_ok = false,
+       };
+       NIR_PASS(progress, nir, nir_opt_peephole_select,
+                &peephole_select_options);
