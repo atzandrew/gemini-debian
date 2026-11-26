@@ -1,0 +1,7 @@
+# Astro desktop (devices/astro.env DESKTOP_LISTS), installed WITH its
+# Recommends: Plasma 6 Wayland on panfrost + mediatek-drm (astro-linux618
+# docs/desktop.md P1, 2026-11-25). No display manager yet: start with
+# startplasma-wayland from tty1. Recommends bring powerdevil (idle
+# screen-off, burn-in rule), kscreen, xwayland.
+plasma-desktop
+konsole

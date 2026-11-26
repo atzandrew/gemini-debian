@@ -1,0 +1,21 @@
+# Astro OLED (burn-in rule R5): dim at 30 s, screen off at 60 s idle,
+# on every power profile. The screen-off is the panel's stock off
+# sequence (KWin DPMS -> mediatek-drm -> SH8802B unprepare).
+[AC][Display]
+DimDisplayWhenIdle=true
+DimDisplayIdleTimeoutSec=30
+TurnOffDisplayWhenIdle=true
+TurnOffDisplayIdleTimeoutSec=60
+
+[Battery][Display]
+DimDisplayWhenIdle=true
+DimDisplayIdleTimeoutSec=30
+TurnOffDisplayWhenIdle=true
+TurnOffDisplayIdleTimeoutSec=60
+
+[LowBattery][Display]
+DimDisplayWhenIdle=true
+DimDisplayIdleTimeoutSec=30
+TurnOffDisplayWhenIdle=true
+TurnOffDisplayIdleTimeoutSec=60
+

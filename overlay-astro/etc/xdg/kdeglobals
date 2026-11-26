@@ -1,0 +1,6 @@
+# Astro OLED: dark by default.
+[General]
+ColorScheme=BreezeDark
+
+[KDE]
+LookAndFeelPackage=org.kde.breezedark.desktop
