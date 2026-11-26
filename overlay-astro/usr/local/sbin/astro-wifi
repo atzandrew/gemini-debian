@@ -118,7 +118,14 @@ if [ "$(stat -c %s "$NV/WIFI" 2>/dev/null || echo 0)" -ge $NVREC ]; then
 else
 	say "WARNING: no NVRAM record (driver defaults)"
 fi
+# gen4m logs ~700 info lines a minute at its default level (0x2f: periodic
+# link/perf monitors). Errors + warnings only (0x03); ASTRO_WIFI_DBG=0x2f
+# (or 0x3f with trace) in the environment restores the vendor default. Set
+# before power-on and again after (the driver resets it at init).
+DBG="${ASTRO_WIFI_DBG:-0x03}"
+dbg() { [ -w /proc/net/wlan/dbgLevel ] && echo "0xFF:$DBG" > /proc/net/wlan/dbgLevel; }
+dbg
 printf 1 > /dev/wmtWifi || { say "Wi-Fi power-on failed (dmesg: WMT)"; exit 1; }
 for i in $(seq 1 20); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.5; done
 [ -e /sys/class/net/wlan0 ] || { say "no wlan0 after power-on"; exit 1; }
-say "wlan0 up"
+dbg && say "wlan0 up (gen4m log level $DBG)" || say "wlan0 up"
