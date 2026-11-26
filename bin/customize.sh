@@ -380,6 +380,8 @@ if [ "$DEVICE" = astro ]; then
     # Mesa from trixie-backports, as the Cosmo (etc/apt/preferences.d/mesa-backports).
     in_chroot dpkg-query -W -f '${Version}' mesa-libgallium | grep -q '~bpo13' || { echo "!! Mesa is not the trixie-backports build"; exit 1; }
     grep -qx "mediatek-cpufreq" "$R/etc/modules-load.d/astro-cpufreq.conf" || { echo "!! CPU DVFS module not loaded at boot"; exit 1; }
+    grep -qx "export KWIN_COMPOSE=O2ES" "$R/etc/xdg/plasma-workspace/env/astro.sh" || { echo "!! KWin not set to OpenGL ES (GL error flood on desktop GL)"; exit 1; }
+    grep -q "^CompositorCommand=env KWIN_COMPOSE=O2ES" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM greeter KWin not on OpenGL ES"; exit 1; }
     grep -qx "CompositorCommand=kwin_wayland .* /usr/libexec/astro-greeter-idle" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM's KWin does not start astro-greeter-idle"; exit 1; }
     [ -x "$R/usr/libexec/astro-greeter-idle" ] || { echo "!! astro-greeter-idle missing"; exit 1; }
     for t in kwin_wayland swayidle kscreen-doctor; do
