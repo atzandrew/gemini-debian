@@ -132,6 +132,15 @@ if [ "$DEVICE" = cosmo ]; then
     scale2 "$R$SH/.config/kwinoutputconfig.json"
     in_chroot chown -R sddm:sddm "$SH/.config"
 fi
+if [ "$DEVICE" = astro ]; then
+    # SDDM's KWin: the desktop's output config (Rotated270, scale 2), as
+    # KWin wrote it for the Plasma session on the Astro.
+    SH=$(in_chroot getent passwd sddm | cut -d: -f6)
+    [ -n "$SH" ] || { echo "!! no sddm user"; exit 1; }
+    install -d -m 755 "$R$SH/.config"
+    install -m 644 "$R/usr/share/astro/sddm-kwinoutputconfig.json" "$R$SH/.config/kwinoutputconfig.json"
+    in_chroot chown -R sddm:sddm "$SH/.config"
+fi
 
 echo "    customize: hostname, timezone, locale"
 echo "$GEMINI_HOSTNAME" > "$R/etc/hostname"
@@ -351,6 +360,15 @@ if [ "$DEVICE" = astro ]; then
     grep -qx "XKBLAYOUT=\"cosmo\"" "$R/etc/default/keyboard" || { echo "!! keyboard layout is not cosmo"; exit 1; }
     ! in_chroot dpkg -s parted >/dev/null 2>&1 || { echo "!! parted installed (GPT holds the bootloaders)"; exit 1; }
     [ -s "$R/home/$GEMINI_USER/.ssh/authorized_keys" ] || { echo "!! no SSH key for $GEMINI_USER"; exit 1; }
+    # Login screen: KWin greeter with the idle screen-off (OLED burn-in rule).
+    grep -qx "DisplayServer=wayland" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM greeter is not Wayland"; exit 1; }
+    grep -qx "CompositorCommand=kwin_wayland .* /usr/libexec/astro-greeter-idle" "$R/etc/sddm.conf.d/astro.conf" || { echo "!! SDDM's KWin does not start astro-greeter-idle"; exit 1; }
+    [ -x "$R/usr/libexec/astro-greeter-idle" ] || { echo "!! astro-greeter-idle missing"; exit 1; }
+    for t in kwin_wayland swayidle kscreen-doctor; do
+        in_chroot sh -c "command -v $t" >/dev/null || { echo "!! $t missing (greeter idle screen-off)"; exit 1; }
+    done
+    SH=$(in_chroot getent passwd sddm | cut -d: -f6)
+    grep -q '"transform": "Rotated270"' "$R$SH/.config/kwinoutputconfig.json" || { echo "!! SDDM greeter output config (rotation) missing"; exit 1; }
     echo "    customize: ok (astro)"
     exit 0
 fi
