@@ -379,7 +379,10 @@ if [ "$DEVICE" = astro ]; then
         [ -e "$R/usr/libexec/astro-bb/$a" ] || { echo "!! busybox applet $a missing (astro-disp/astro-console)"; exit 1; }
     done
     grep -qx "method=manual" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 not static"; exit 1; }
-    grep -qx "address1=10.15.21.1/24,10.15.21.2" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 address/gateway wrong"; exit 1; }
+    grep -qx "address1=10.15.21.1/24" "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 address wrong (static, no gateway)"; exit 1; }
+    ! grep -qE "^(dns=|gateway=)|^address1=.*," "$R/etc/NetworkManager/system-connections/usb0.nmconnection" || { echo "!! usb0 routes or resolves through the USB host (SSH-only link)"; exit 1; }
+    grep -qx "start 10.15.21.2" "$R/etc/astro/udhcpd-usb0.conf" && ! grep -qE "^option (router|dns)" "$R/etc/astro/udhcpd-usb0.conf" || { echo "!! usb0 DHCP lease wrong (must have no router/DNS)"; exit 1; }
+    in_chroot systemctl is-enabled astro-usb-dhcp.service >/dev/null 2>&1 || { echo "!! astro-usb-dhcp.service not enabled (hosts flap retrying DHCP)"; exit 1; }
     grep -q "PARTLABEL=userdata / " "$R/etc/fstab" || { echo "!! fstab root is not PARTLABEL=userdata"; exit 1; }
     [ -f "$R/usr/share/X11/xkb/symbols/cosmo" ] || { echo "!! cosmo xkb symbols missing"; exit 1; }
     grep -qx "XKBLAYOUT=\"cosmo\"" "$R/etc/default/keyboard" || { echo "!! keyboard layout is not cosmo"; exit 1; }

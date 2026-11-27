@@ -4,3 +4,4 @@ astro-boot-ok.service
 astro-display.service
 astro-wifi.service
 astro-bt.service
+astro-usb-dhcp.service

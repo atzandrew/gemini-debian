@@ -1,7 +1,7 @@
-# USB network link to Monolith (g_ether gadget, built into the Astro kernel).
-# Static: the Astro is @USB_ADDR@, as in its rescue initramfs. Monolith is
-# @USB_GW@ with a NetworkManager "shared" profile (NAT + DNS), so this link
-# is also the Astro's way to the internet until Wi-Fi works.
+# USB link to the computer on the right-hand port (g_ether gadget, built into
+# the Astro kernel). Static: the Astro is @USB_ADDR@, as in its rescue
+# initramfs; astro-usb-dhcp.service hands the computer its address. SSH only:
+# no gateway, no DNS, no NAT either way (internet is Wi-Fi).
 [connection]
 id=usb0
 type=ethernet
@@ -12,9 +12,9 @@ autoconnect=true
 
 [ipv4]
 method=manual
-address1=@USB_ADDR@,@USB_GW@
-dns=@USB_GW@;
-route-metric=1000
+address1=@USB_ADDR@
+never-default=true
+ignore-auto-dns=true
 
 [ipv6]
 method=disabled

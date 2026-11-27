@@ -1,0 +1,16 @@
+# DHCP for the USB link only (no router/DNS options, no NAT): the computer on
+# the other end gets 10.15.21.2 for SSH to the Astro (10.15.21.1).
+[Unit]
+Description=Astro USB link DHCP (lease only, no routing)
+BindsTo=sys-subsystem-net-devices-usb0.device
+After=sys-subsystem-net-devices-usb0.device NetworkManager.service
+
+[Service]
+ExecStartPre=/usr/bin/touch /run/astro-udhcpd-usb0.leases
+ExecStart=/usr/bin/busybox udhcpd -f /etc/astro/udhcpd-usb0.conf
+# usb0 gets its address from NetworkManager; retry until it has one
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=sys-subsystem-net-devices-usb0.device multi-user.target
