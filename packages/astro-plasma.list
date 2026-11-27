@@ -9,3 +9,9 @@ konsole
 sddm
 sddm-theme-breeze
 swayidle
+# Audio (astro-linux618 docs/audio-stock.md): UCM profile for the "Astro
+# Slide" card (overlay usr/share/alsa/ucm2), speaker filter for PipeWire's
+# filter-chain (overlay usr/share/pipewire/filter-chain.conf.d);
+# alsa-utils for amixer/aplay in sound reports.
+alsa-ucm-conf
+alsa-utils

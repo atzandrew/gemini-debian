@@ -405,6 +405,12 @@ if [ "$DEVICE" = astro ]; then
     done
     SH=$(in_chroot getent passwd sddm | cut -d: -f6)
     grep -q '"transform": "Rotated270"' "$R$SH/.config/kwinoutputconfig.json" || { echo "!! SDDM greeter output config (rotation) missing"; exit 1; }
+    # Audio: UCM profile (fixed -2 dB stock speaker drive) and the stock
+    # 300 Hz speaker high-pass as a PipeWire smart filter.
+    in_chroot dpkg -s alsa-ucm-conf >/dev/null 2>&1 || { echo "!! alsa-ucm-conf missing (no Astro UCM profile)"; exit 1; }
+    [ -f "$R/usr/share/alsa/ucm2/conf.d/mt8192_mt6359/Astro Slide.conf" ] && [ -f "$R/usr/share/alsa/ucm2/MediaTek/mt8192/astro-slide/HiFi.conf" ] || { echo "!! Astro UCM profile missing"; exit 1; }
+    grep -q "filter.smart.target = { node.name = \"alsa_output.platform-sound.HiFi__Speaker__sink\" }" "$R/usr/share/pipewire/filter-chain.conf.d/astro-speaker.conf" || { echo "!! Astro speaker filter missing"; exit 1; }
+    in_chroot sh -c "command -v amixer" >/dev/null || { echo "!! amixer missing"; exit 1; }
     echo "    customize: ok (astro)"
     exit 0
 fi
